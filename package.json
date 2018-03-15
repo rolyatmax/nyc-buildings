@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "minimist": "^1.2.0",
+    "standard": "^11.0.1",
+    "xml2js": "^0.4.19"
+  }
+}
