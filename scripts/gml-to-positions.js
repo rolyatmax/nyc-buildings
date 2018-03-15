@@ -48,6 +48,7 @@ function handleCurrentCityObjectMember(xmlString, i) {
         boundedBy['bldg:RoofSurface'] ||
         boundedBy['bldg:WallSurface']
 
+      // !!!!!!!!!!!!!!!!!!!!!! do this!!!
       // still need to prove that gml:MultiSurface is the only key in lod2MultiSurface
       // and that it has length=1 and that its only key is gml:surfacemember which always
       // has length=1 which has gml:Polygon as its only key with length=1 which has
