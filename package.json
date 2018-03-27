@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "3d-view-controls": "^2.2.2",
+    "array-shuffle": "^1.0.1",
     "browserify": "^16.1.1",
     "budo": "^11.2.0",
     "canvas-fit": "^1.5.0",

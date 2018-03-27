@@ -15,13 +15,12 @@ const rl = readline.createInterface({
   terminal: false
 })
 
-let buildingCount = 0
+// let buildingCount = 0
 const findObjectMember = createFinder('core:cityObjectMember', handleObjectMember)
 rl.on('line', findObjectMember)
 
 function handleObjectMember(xmlString) {
-  buildingCount += 1
-  if (buildingCount < 10000) return
+  // buildingCount += 1
   const findPosList = createFinder('gml:posList', handlePositionsTag)
 
   xmlString.split('\n').forEach(bit => {
