@@ -1,19 +1,10 @@
 // This script is meant to read in a bunch of triangles from a binary source,
 // and return triangle strips using a dumb algorithm i'm trying out
 
-// TODO: Current problem:
-// The script slows down way too much when processing all of Manhattan at the same time
-// It needs to operate on a stream, doing the following for each building:
-// 1. Write all vertex data in binary output to a file (not including
-//    previously-used vertices from entire dataset)
-// 2. After receiving all vertices for a building, run the triangle strip
-//    algorithm and write the output to another file with building & triangle
-//    strip delimiters - the triangle strips should be lists of indexes into
-//    the vertex data file
-
 const path = require('path')
 const argv = require('minimist')(process.argv.slice(2))
-const shuffle = require('array-shuffle')
+const split = require('binary-split')
+// const shuffle = require('array-shuffle')
 
 if (argv.h || argv.help) {
   console.log(
@@ -22,24 +13,20 @@ if (argv.h || argv.help) {
   process.exit(0)
 }
 
-let input = []
-process.stdin.on('data', (data) => { input.push(data) })
-process.stdin.on('close', () => {
-  let len = 0
-  input.forEach(buf => { len += buf.byteLength })
-  const bytes = new Uint8Array(len)
-  let i = 0
-  input.forEach(buf => {
-    const tmp = new Uint8Array(buf)
-    for (let b = 0; b < tmp.length; b++) {
-      bytes[i++] = tmp[b]
-    }
-  })
-  processTriangles(new Float32Array(bytes.buffer))
+const BUILDING_DELIMITER = Buffer.from(Uint8Array.from([1, 2, 3, 4]))
+const TRIANGLE_STRIP_DELIMITER = Buffer.from(Uint8Array.from([5, 6, 7, 8]))
+
+process.stdin.pipe(split(BUILDING_DELIMITER)).on('data', (building) => {
+  const bytes = new Uint8Array(building)
+  if (bytes.buffer.byteLength % 36 !== 0) {
+    throw new Error('Error! Expected a byteLength divisible by 36')
+    process.exit(1)
+  }
+  processBuilding(new Float32Array(bytes.buffer))
 })
 
-// should be used to process triangles for a single building
-function processTriangles(tris) {
+let buildingCount = 0
+function processBuilding(tris) {
   const vertices = []
   const verticesNameMap = {}
   let triangles = []
@@ -56,7 +43,7 @@ function processTriangles(tris) {
       const vertexName = getVertexName(x, y, z)
       if (!verticesNameMap[vertexName]) {
         vertices.push(x, y, z) // perhaps just write this to a file at this point
-        verticesNameMap[vertexName] = k++
+        verticesNameMap[vertexName] = new Float32Array([x, y, z])
       }
     }
     const a = tris.slice(i + 0, i + 3)
@@ -88,21 +75,148 @@ function processTriangles(tris) {
   let curStripIdx = 0
   while (triangles.length) {
     const curStrip = strips[curStripIdx] = strips[curStripIdx] || []
+    // we want to reverse the strip and go in the other direction after we run
+    // out of options. this is how we'll keep track of that
+    let hasReversedCurStrip = false
     let curTri = triangles.shift()
     while (trianglesVisited[curTri] && triangles.length) {
       curTri = triangles.shift()
     }
-    while (curTri) {
+    while (true) {
+      if (!curTri) {
+        if (hasReversedCurStrip) {
+          break
+        }
+        curStrip.reverse()
+        curTri = curStrip.pop()
+        hasReversedCurStrip = true
+      }
       trianglesVisited[curTri] = true
       curStrip.push(curTri) // perhaps just write to a file here?
-      const nextTris = trianglesNeighbors[curTri].filter(t => !trianglesVisited[t])
+      const nextTris = trianglesNeighbors[curTri].filter(t => {
+        if (trianglesVisited[t]) return false
+        const points = t.split(' ')
+
+        // cannot have more than one point in common with the triangle
+        // before last
+        if (curStrip.length > 1) {
+          let ptsInCommon = 0
+          const ptsFromTriBeforeLast = curStrip[curStrip.length - 2].split(' ')
+          for (let pnt of points) {
+            if (ptsFromTriBeforeLast.includes(pnt)) {
+              ptsInCommon += 1
+            }
+          }
+          if (ptsInCommon > 1) return false
+        }
+
+        // cannot have a point that's been in the last three triangles
+        if (curStrip.length > 2) {
+          for (let pnt of points) {
+            let isInPreviousTriangles = true
+            for (let h = 0; h < 3; h++) {
+              const otherTriPts = curStrip[curStrip.length - 1 - h].split(' ')
+              if (!otherTriPts.includes(pnt)) {
+                isInPreviousTriangles = false
+              }
+            }
+            if (isInPreviousTriangles) return false
+          }
+        }
+        return true
+      })
       curTri = nextTris[0]
     }
-    curStripIdx += 1 // perhaps just write strip delimiter to a file here?
+    curStripIdx += 1
   }
-  // perhaps just write building delimiter to a file here?
-  console.log('strip count', strips.length)
-  console.log('triangle count', tris.length / 9)
+
+  const collapsedStrips = strips.map(collapseStrip)
+
+  // go through and print out collapsedStrips
+  // don't prepend the building delimiter on the first building
+  collapsedStrips.forEach((verts, i) => {
+    // don't prepend the delimiter on the first strip
+    if (i !== 0) process.stdout.write(TRIANGLE_STRIP_DELIMITER)
+    verts.forEach(v => {
+      const pt = verticesNameMap[v]
+      if (!pt) {
+        console.log('ERROR!')
+        console.log('---- verticesNameMap[v]', verticesNameMap[v])
+        console.log('------ v', v)
+        console.log('----------- verts:', verts)
+        console.log('------------------------ collapsedStrips:', collapsedStrips)
+        throw new Error('Something went wrong! - vertex not found in verticesNameMap!')
+      }
+      process.stdout.write(Buffer.from(pt.buffer))
+    })
+  })
+  process.stdout.write(BUILDING_DELIMITER)
+  buildingCount += 1
+}
+
+// takes a list of triangleNames
+// returns a list of vertexNames
+function collapseStrip(strip, idx) {
+  strip = strip.map(triName => triName.split(' '))
+  if (strip.length === 1) {
+    return strip[0]
+  }
+
+  let collapsed = []
+
+  if (strip.length === 2) {
+    collapsed = strip[0].slice()
+    for (let k = 0; k < 3; k++) {
+      if (!strip[1].includes(strip[0][k])) {
+        const pt = collapsed.splice(k, 1)[0]
+        collapsed.unshift(pt)
+        break
+      }
+    }
+  } else {
+    // for the first triangle, we want to push the three points on in the right order
+    for (let k = 0; k < 3; k++) {
+      if (strip[1].includes(strip[0][k]) && strip[2].includes(strip[0][k])) {
+        collapsed[2] = strip[0][k]
+      } else if (strip[1].includes(strip[0][k])) {
+        collapsed[1] = strip[0][k]
+      } else {
+        collapsed[0] = strip[0][k]
+      }
+    }
+  }
+
+  // just make sure we got the first triangle set up correctly
+  // (these are all vertexNames at this point - strings)
+  if (!collapsed[0] || !collapsed[1] || !collapsed[2]) {
+    console.log('ERROR on strip #:', idx)
+    console.log('collapsed:', collapsed)
+    console.log('triangle:', strip)
+    throw new Error('something is wrong: first triangle not correctly formed')
+  }
+
+  // now go through all the rest of the triangles pushing the one vertex that's not already
+  // in the collapsed list into the collapsed list
+  for (let i = 1; i < strip.length; i++) {
+    let pointToAdd
+    for (let j = 0; j < 3; j++) {
+      if (collapsed[collapsed.length - 1] !== strip[i][j] && collapsed[collapsed.length - 2] !== strip[i][j]) {
+        if (pointToAdd) {
+          console.log('ERROR on strip #:', idx)
+          console.log('collapsed:', collapsed)
+          console.log('triangle:', strip[i])
+          throw new Error('something is wrong: more than one point to add to `collapsed`')
+        }
+        pointToAdd = strip[i][j]
+      }
+    }
+    if (!pointToAdd) {
+      throw new Error('something is wrong: no pointToAdd - degenerate triangle?')
+    }
+    collapsed.push(pointToAdd)
+  }
+
+  return collapsed
 }
 
 function getEdgeName(a, b) {

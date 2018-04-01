@@ -1,5 +1,10 @@
 # nyc-buildings
 
+### Sources
+
+https://www.gis.bgu.tum.de/projekte/new-york-city-3d/
+https://www1.nyc.gov/site/doitt/initiatives/3d-building.page
+
 ### Some numbers
 
 The [`DA_WISE_GMLs` dataset](https://www1.nyc.gov/site/doitt/initiatives/3d-building.page) contains 20

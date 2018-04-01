@@ -16,10 +16,7 @@ const rl = readline.createInterface({
   terminal: false
 })
 
-const findObjectMember = createFinder('core:cityObjectMember', handleObjectMember)
-rl.on('line', findObjectMember)
-
-function handleObjectMember(xmlString) {
+rl.on('line', createFinder('core:cityObjectMember', function handleObjectMember(xmlString) {
   const findPosList = createFinder('gml:posList', handlePositionsTag)
 
   xmlString.split('\n').forEach(bit => {
@@ -52,7 +49,7 @@ function handleObjectMember(xmlString) {
     const array = new Float32Array(positions)
     process.stdout.write(Buffer.from(array.buffer))
   }
-}
+}))
 
 function createFinder (tag, handler) {
   let current = ''
