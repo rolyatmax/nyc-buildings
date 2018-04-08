@@ -88,6 +88,9 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   function getCenter () {
     return camera.center
   }
+  function getEye() {
+    return camera.eye
+  }
   function stopRoaming () {
     clearTimeout(timeout)
     timeout = null
@@ -113,6 +116,7 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     tick,
     getMatrix,
     getCenter,
+    getEye,
     startRoaming
   }
 }

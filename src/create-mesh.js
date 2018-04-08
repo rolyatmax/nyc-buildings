@@ -15,6 +15,7 @@ module.exports = function createMesh(buffer) {
   const buildingIdxToHeight = []
   const buildingIdxToWidth = []
   const buildingIdxToMinX = []
+  const buildingIdxToMinZ = []
   let buildingCount = 0
   let curNormal = [] // reuse this array
   let vertices = [] // reuse this array
@@ -83,15 +84,17 @@ module.exports = function createMesh(buffer) {
     vertIdxByteSize,
     buildingID
   ) {
+    // if (buildingCount > 1000) return
     buildingIdxToBinMap[buildingCount] = buildingID
     buildingBinToIdxMap[buildingID] = buildingCount
     const b = buf.slice(chunkStart, chunkEnd)
     const TypedArray = vertIdxByteSize === 1 ? Uint8Array : Uint16Array
     const vertIndexes = new TypedArray(b.buffer)
 
-    let maxHeight = -Infinity
     let minX = Infinity
     let maxX = -Infinity
+    let minZ = Infinity
+    let maxZ = -Infinity
     for (let i = 0; i < vertices.length; i += 3) {
       // For DA_WISE dataset
       // mins: [ 978979.241500825, 194479.073690146, -39.0158999999985 ]
@@ -100,25 +103,26 @@ module.exports = function createMesh(buffer) {
       vertices[i + 1] = (vertices[i + 1] - 194479) / 1000
       vertices[i + 2] = (vertices[i + 2] - -39.5) / 1000
 
-      maxHeight = Math.max(maxHeight, vertices[i + 2])
       minX = Math.min(minX, vertices[i])
       maxX = Math.max(maxX, vertices[i])
+      minZ = Math.min(minZ, vertices[i + 2])
+      maxZ = Math.max(maxZ, vertices[i + 2])
 
       // vertices[i] += (Math.random() * 2 - 1) * 0.05
       // vertices[i + 1] += (Math.random() * 2 - 1) * 0.05
       // vertices[i + 2] += (Math.random() * 2 - 1) * 0.05
     }
 
-    buildingIdxToHeight[buildingCount] = maxHeight
     buildingIdxToWidth[buildingCount] = maxX - minX
     buildingIdxToMinX[buildingCount] = minX
+    buildingIdxToHeight[buildingCount] = maxZ - minZ
+    buildingIdxToMinZ[buildingCount] = minZ
 
     if (vertIndexes.length % 3 !== 0) {
       throw new Error('ACK! Something is wrong with the triangles!')
     }
 
     for (let j = 0; j < vertIndexes.length; j += 3) {
-      // if (buildingCount > 20000) break
       const v1Idx = vertIndexes[j]
       const v2Idx = vertIndexes[j + 1]
       const v3Idx = vertIndexes[j + 2]
@@ -198,7 +202,8 @@ module.exports = function createMesh(buffer) {
     buildingIdxToBinMap,
     buildingIdxToHeight,
     buildingIdxToWidth,
-    buildingIdxToMinX
+    buildingIdxToMinX,
+    buildingIdxToMinZ
   }
 
   function checkVertex(x, y, z) {

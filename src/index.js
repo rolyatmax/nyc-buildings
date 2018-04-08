@@ -30,15 +30,15 @@ const getProjection = () => mat4.perspective(
 // sideview of Manhattan:
 // center: "6.651801509045625, 16.327148056768706, -0.07823453668244912"
 // eye: "31.161953007311798, 5.723376647221853, 0.08826498790471207"
-const center = [0, 0, 10]
-const eye = [4, 8, 0]
+const center = [11.402860183280717, 26.015250591595468, 3.2385829875405845] // [0, 0, 10]
+const eye = [9.644215914045503, 24.756498589454143, 0.5] // [4, 8, 0]
 const camera = createRoamingCamera(canvas, center, eye, getProjection)
 
 window.addEventListener('keypress', (e) => {
   if (e.charCode === 32) {
     console.log({
-      center: camera.center.map(v => parseFloat(v)).join(', '),
-      eye: camera.eye.map(v => parseFloat(v)).join(', ')
+      center: camera.getCenter().map(v => parseFloat(v)).join(', '),
+      eye: camera.getEye().map(v => parseFloat(v)).join(', ')
     })
   }
 })
@@ -62,6 +62,10 @@ const settings = {
   lightSourceZ: 20,
   wireframeThickness: 0.1,
   opacity: 0.45,
+  lineupScale: 0.04,
+  rowHeight: 0.75,
+  paddingX: 0.15,
+  paddingY: 3,
   t: 0,
   colorCodeField: 'YearBuilt'
 }
@@ -72,6 +76,10 @@ gui.add(settings, 'lightSourceY', -500, 500).step(1)
 gui.add(settings, 'lightSourceZ', -500, 500).step(1)
 gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
 gui.add(settings, 'opacity', 0, 1).step(0.01)
+gui.add(settings, 'lineupScale', 0.01, 1).step(0.01)
+gui.add(settings, 'rowHeight', 0.01, 1).step(0.001)
+gui.add(settings, 'paddingX', 0.01, 1).step(0.01)
+gui.add(settings, 'paddingY', 0.01, 3).step(0.01)
 gui.add(settings, 't', 0, 1).step(0.01)
 gui.add({ roam: camera.startRoaming }, 'roam')
 
@@ -184,17 +192,36 @@ function getColorAttributes(mesh, metadata, binToBBLMap, fieldName) {
 }
 
 function createHeightLineup(mesh) {
-  const { buildingIdxToHeight, buildingIdxToWidth, buildingIdxToMinX } = mesh
-  console.log(buildingIdxToHeight.length)
+  const { buildingIdxToHeight, buildingIdxToWidth, buildingIdxToMinX, buildingIdxToMinZ, positions, buildings } = mesh
+  const buildingsByHeightMap = {}
   const buildingsByHeight = buildingIdxToHeight
     .map((height, idx) => ({
       index: idx,
       width: buildingIdxToWidth[idx],
       height: height,
-      translateX: buildingIdxToMinX[idx] * -1
+      minX: buildingIdxToMinX[idx],
+      minZ: buildingIdxToMinZ[idx]
     }))
     .sort((a, b) => b.height - a.height < 0 ? -1 : 1)
-  return buildingsByHeight
+  let accumulatedWidth = 0
+  let paddingBetweenBuildings = 0.01
+  buildingsByHeight.forEach(bldg => {
+    buildingsByHeightMap[bldg.index] = bldg
+    bldg.xOffset = accumulatedWidth
+    accumulatedWidth += bldg.width + paddingBetweenBuildings
+  })
+
+  const lineupXOffsets = []
+  const lineupMinX = []
+  const lineupMinZ = []
+  for (let j = 0; j < positions.length / 3; j += 1) {
+    const bldg = buildingsByHeightMap[buildings[j]]
+    lineupXOffsets.push(bldg.xOffset)
+    lineupMinX.push(bldg.minX)
+    lineupMinZ.push(bldg.minZ)
+  }
+
+  return { lineupXOffsets, lineupMinX, lineupMinZ }
 }
 
 function getEntropyAttributes(mesh) {
@@ -219,8 +246,7 @@ function setup([mesh, metadata, binToBBLMap]) {
   window.metadata = metadata
   window.binToBBLMap = binToBBLMap
 
-  const buildingsByHeight = createHeightLineup(mesh)
-  console.log(buildingsByHeight)
+  const { lineupXOffsets, lineupMinX, lineupMinZ } = createHeightLineup(mesh)
 
   gui.add(settings, 'colorCodeField', Object.keys(headerMap)).onChange(() => {
     colors({ data: getColorAttributes(mesh, metadata, binToBBLMap, settings.colorCodeField) })
@@ -237,12 +263,19 @@ function setup([mesh, metadata, binToBBLMap]) {
       attribute float building;
       attribute float random;
       attribute vec3 color;
+      attribute float lineupXOffset;
+      attribute float lineupMinX;
+      attribute float lineupMinZ;
 
       varying vec4 fragColor;
       varying vec3 barycentric;
       varying float camDistance;
       varying float vOpacity;
 
+      uniform vec2 padding;
+      uniform float lineupScale;
+      uniform float rowHeight;
+      uniform vec2 viewport;
       uniform float time;
       uniform float startTime;
       uniform vec3 lightSource;
@@ -264,10 +297,6 @@ function setup([mesh, metadata, binToBBLMap]) {
         // float t = clamp((time - start) / animationLength, 0.0, 1.0);
         // t = pow(1.0 - t, 4.0);
 
-        // float angle = rand(position.xy) * random + time * rand(position.yz);
-        // vec3 noiseOffset = vec3(sin(angle), cos(angle), sin(angle)) / 50.0;
-        // vec3 posNoise = position.xyz + noiseOffset;
-
         // float z = mix(position.z, position.z + random * 10.0 + 5.0, t);
         // vec4 firstPos = projection * view * vec4(posNoise, 1.0);
         // vec4 secondPos = projection * view2 * vec4(posNoise, 1.0);
@@ -275,16 +304,35 @@ function setup([mesh, metadata, binToBBLMap]) {
         // gl_Position = pos;
         // gl_Position = firstPos;
 
-        gl_Position = projection * view * vec4(position.xyz, 1);
+        // gl_Position = projection * view * vec4(position.xyz, 1);
         // vOpacity = pow(1.0 - t, 3.0);
 
+        float aspect = viewport.x / viewport.y;
+        float screenCoordXOffset = lineupXOffset / aspect * lineupScale;
+        float rows = screenCoordXOffset / 2.0;
+        float calcScreenCordXOffset = fract(rows) * 2.0;
+        float calcXOffset = calcScreenCordXOffset * aspect / lineupScale;
+        rows = floor(rows);
+
+        gl_Position = vec4(
+          position.x - lineupMinX + padding.x + calcXOffset,
+          position.z - lineupMinZ - rowHeight * rows - padding.y,
+          0.0,
+          1.0
+        );
+
+        gl_Position.x /= aspect;
+        gl_Position.xy *= lineupScale;
+        gl_Position.xyz += vec3(-1.0, 1.0, 0.0);
+        fragColor = vec4(0.19, 0.19, 0.19, 1.0);
+
         camDistance = gl_Position.z;
-        float opacity = pow(1.0 - (gl_Position.z / 500.0), 8.0);
+        // float opacity = pow(1.0 - (gl_Position.z / 500.0), 8.0);
 
-        vec3 lightDirection = lightSource;
-        float lighten = clamp(0.0, 1.0, dot(normalize(normal), normalize(lightDirection)));
+        // vec3 lightDirection = lightSource;
+        // float lighten = clamp(0.0, 1.0, dot(normalize(normal), normalize(lightDirection)));
 
-        fragColor = vec4(color, opacity);
+        // fragColor = vec4(color, opacity);
         // fragColor = mix(vec4(color, opacity), vec4(vec3(1), opacity), lighten);
         // fragColor.rgb -= vec3(0.2);
       }
@@ -307,6 +355,9 @@ function setup([mesh, metadata, binToBBLMap]) {
       }
 
       void main() {
+        gl_FragColor = fragColor;
+        return;
+
         float d = min(min(barycentric.x, barycentric.y), barycentric.z);
         float positionAlong = max(barycentric.x, barycentric.y);
         if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
@@ -337,12 +388,19 @@ function setup([mesh, metadata, binToBBLMap]) {
         settings.lightSourceZ // 20 // (Math.sin(time / 7) + 1) * 5
       ],
       thickness: () => settings.wireframeThickness,
-      opacity: () => settings.opacity
+      opacity: () => settings.opacity,
+      padding: () => [settings.paddingX, settings.paddingY],
+      lineupScale: () => settings.lineupScale,
+      rowHeight: () => settings.rowHeight,
+      viewport: ({ viewportWidth, viewportHeight }) => [viewportWidth, viewportHeight]
     },
     attributes: {
       position: positions,
       normal: normals,
       building: buildings,
+      lineupMinX: lineupMinX,
+      lineupMinZ: lineupMinZ,
+      lineupXOffset: lineupXOffsets,
       bary: barys,
       random: randoms,
       color: colors
