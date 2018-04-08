@@ -2,258 +2,382 @@ const createRegl = require('regl')
 const fit = require('canvas-fit')
 const glsl = require('glslify')
 const mat4 = require('gl-mat4')
-const getNormal = require('triangle-normal')
-const createCamera = require('3d-view-controls')
+const { scaleSequential } = require('d3-scale')
+const { interpolateGnBu } = require('d3-scale-chromatic')
+const { rgb } = require('d3-color')
+// const createCamera = require('3d-view-controls')
+const createPerspectiveCamera = require('perspective-camera')
+const createRoamingCamera = require('./create-roaming-camera')
+const { GUI } = require('dat-gui')
+const createMesh = require('./create-mesh')
+const createFxaaRenderer = require('./render-fxaa')
 
 const canvas = document.body.appendChild(document.createElement('canvas'))
 window.addEventListener('resize', fit(canvas), false)
-const camera = createCamera(canvas)
-const regl = createRegl(canvas)
+const regl = createRegl({
+  extensions: ['oes_standard_derivatives', 'oes_texture_float'],
+  canvas: canvas
+})
 
-camera.lookAt(
-  [0, 0, 20],
-  [10, 20, 0],
-  [0, 0, 99999]
+const getProjection = () => mat4.perspective(
+  [],
+  Math.PI / 4,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  1000
 )
 
-// const BUILDING_DELIMITER = new Float32Array(Uint8Array.from([1, 2, 3, 4]).buffer)[0]
-// const TRIANGLE_STRIP_DELIMITER = new Float32Array(Uint8Array.from([5, 6, 7, 8]).buffer)[0]
-const BUILDING_DELIMITER = [255, 255, 255, 255]
-const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
+// sideview of Manhattan:
+// center: "6.651801509045625, 16.327148056768706, -0.07823453668244912"
+// eye: "31.161953007311798, 5.723376647221853, 0.08826498790471207"
+const center = [0, 0, 10]
+const eye = [4, 8, 0]
+const camera = createRoamingCamera(canvas, center, eye, getProjection)
 
-// also: models/manhattan.vertices.deduped.binary
-// also: models/DA12_3D_Buildings.surfaces.subset.binary
-// also: models/DA12_3D_Buildings.surfaces.binary
-// also: models/manhattan.surfaces.binary
-window.fetch('models/manhattan.indexed.building.triangles.binary')
+window.addEventListener('keypress', (e) => {
+  if (e.charCode === 32) {
+    console.log({
+      center: camera.center.map(v => parseFloat(v)).join(', '),
+      eye: camera.eye.map(v => parseFloat(v)).join(', ')
+    })
+  }
+})
+
+const camera2 = createPerspectiveCamera({
+  fov: Math.PI / 2,
+  near: 0.01,
+  far: 1000,
+  viewport: [0, 0, canvas.width, canvas.height]
+})
+
+camera2.translate([-3, 22, 0.7])
+camera2.lookAt([10, 20, 0])
+camera2.up = [0, 0, 99999]
+camera2.update()
+window.camera2 = camera2
+
+const settings = {
+  lightSourceX: -100,
+  lightSourceY: 0,
+  lightSourceZ: 20,
+  wireframeThickness: 0.1,
+  opacity: 0.45,
+  t: 0,
+  colorCodeField: 'YearBuilt'
+}
+
+const gui = new GUI()
+gui.add(settings, 'lightSourceX', -500, 500).step(1)
+gui.add(settings, 'lightSourceY', -500, 500).step(1)
+gui.add(settings, 'lightSourceZ', -500, 500).step(1)
+gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
+gui.add(settings, 'opacity', 0, 1).step(0.01)
+gui.add(settings, 't', 0, 1).step(0.01)
+gui.add({ roam: camera.startRoaming }, 'roam')
+
+const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
   .then(res => res.arrayBuffer())
-  .then(setup)
+  .then(createMesh)
 
-function setup(buffer) {
-  const buf = new Uint8Array(buffer)
+const metadataFetch = window.fetch('models/pluto_csv/MN2017V11.csv')
+  .then(res => res.text())
+  .then(parseMetadataCSV)
 
-  const positions = []
-  const normals = []
-  const buildings = []
-  let buildingCount = 0
-  let curNormal = [] // reuse this array
-  let vertices = [] // reuse this array
+const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
+  .then(res => res.text())
+  .then(parseBinToBBLMapCSV)
 
-  let chunkStart = 0
-  let p = 0
-  let curVertIdxByteSize = null
-  while (p < buf.length) {
-    // vertex list delimiter
-    if (buf[p] === VERTEX_LIST_DELIMITER[0] && buf[p + 1] === VERTEX_LIST_DELIMITER[1] && buf[p + 2] === VERTEX_LIST_DELIMITER[2] && buf[p + 3] === VERTEX_LIST_DELIMITER[3] && (p - chunkStart) % (4 * 3) === 0 && curVertIdxByteSize === null) {
-      processBuildingVertices(chunkStart, p)
-      curVertIdxByteSize = buf[p + 4] === 0 ? 1 : 2
-      p += 5
-      chunkStart = p
+Promise.all([geometryFetch, metadataFetch, binToBBLMapFetch]).then(setup)
+
+// NOTE: should probably just do this mapping up front when building the meshes?
+function parseBinToBBLMapCSV(csvText) {
+  const binToBBLMap = {}
+  csvText.split('\r\n').slice(1).forEach(line => {
+    const bits = splitOnCSVComma(line)
+    binToBBLMap[parseInt(bits[0], 10)] = parseInt(bits[1], 10)
+  })
+  return binToBBLMap
+}
+
+function parseMetadataCSV(csvText) {
+  const lines = csvText.split('\r\n')
+  const header = splitOnCSVComma(lines[0])
+  const headerMap = {}
+  header.forEach((name, idx) => { headerMap[name] = idx })
+  const bblToMetadataMap = {}
+  const bblColIDX = headerMap['BBL']
+  const appbblColIDX = headerMap['APPBBL']
+  const rows = lines.slice(1).map(l => {
+    const row = splitOnCSVComma(l)
+    bblToMetadataMap[row[bblColIDX]] = row
+    bblToMetadataMap[row[appbblColIDX]] = row
+    return row
+  })
+  return {
+    headerMap,
+    rows,
+    bblToMetadataMap
+  }
+}
+
+// using this to split on commas that are not inside quotes
+// gonna use the strategy of splitting on commas that are followed
+// by an even number of quotation marks
+function splitOnCSVComma(line) {
+  const parts = ['']
+  let quotationMarksSeen = 0
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') quotationMarksSeen += 1
+    if (line[i] === ',' && quotationMarksSeen % 2 === 0) {
+      parts.push('')
       continue
     }
-
-    // building delimiter
-    if (buf[p] === BUILDING_DELIMITER[0] && buf[p + 1] === BUILDING_DELIMITER[1] && buf[p + 2] === BUILDING_DELIMITER[2] && buf[p + 3] === BUILDING_DELIMITER[3] && curVertIdxByteSize !== null && (p - chunkStart) % (curVertIdxByteSize * 3) === 0) {
-      processBuildingTriangles(chunkStart, p, curVertIdxByteSize)
-      curVertIdxByteSize = null
-      p += 4
-      buildingCount += 1
-      chunkStart = p
-      continue
-    }
-
-    p += 1
+    parts[parts.length - 1] += line[i]
   }
+  return parts
+}
 
-  if (chunkStart !== p) {
-    console.log('chunkStart does not equal p!')
-    console.log('chunkStart:', chunkStart)
-    console.log('p:', p)
-    throw new Error('UGHHHHHH')
-  }
+function getColorAttributes(mesh, metadata, binToBBLMap, fieldName) {
+  const { positions, buildings, buildingIdxToBinMap, buildingIdxToHeight, buildingIdxToWidth } = mesh
+  const { headerMap, bblToMetadataMap } = metadata
+  const colors = []
+  const colorCache = {}
 
-  function processBuildingVertices(chunkStart, chunkEnd) {
-    const b = buf.slice(chunkStart, chunkEnd)
-    vertices = new Float32Array(b.buffer)
-    if (vertices.length % 3 !== 0) throw new Error('ACK! Something is wrong with the vertices!')
-  }
+  const scale = scaleSequential(interpolateGnBu).domain([0.1, 1.8])
 
-  function processBuildingTriangles(chunkStart, chunkEnd, vertIdxByteSize) {
-    // if (vertIdxByteSize === 1) return
-    const b = buf.slice(chunkStart, chunkEnd)
-    const TypedArray = vertIdxByteSize === 1 ? Uint8Array : Uint16Array
-    const vertIndexes = new TypedArray(b.buffer)
-    if (vertIndexes.length % 3 !== 0) throw new Error('ACK! Something is wrong with the triangles!')
-    for (let j = 0; j < vertIndexes.length; j += 3) {
-      const v1Idx = vertIndexes[j]
-      const v2Idx = vertIndexes[j + 1]
-      const v3Idx = vertIndexes[j + 2]
-
-      if (
-        !checkVertex(vertices[v1Idx * 3 + 0], vertices[v1Idx * 3 + 1], vertices[v1Idx * 3 + 2]) ||
-        !checkVertex(vertices[v2Idx * 3 + 0], vertices[v2Idx * 3 + 1], vertices[v2Idx * 3 + 2]) ||
-        !checkVertex(vertices[v3Idx * 3 + 0], vertices[v3Idx * 3 + 1], vertices[v3Idx * 3 + 2])
-      ) {
-        return
+  let r, g, b, lastBuilding
+  let noBBLFound = 0
+  let noMetadataRowFound = 0
+  let metadataFound = 0
+  let noMetadataFieldFound = 0
+  for (let j = 0; j < positions.length / 3; j += 1) {
+    if (buildings[j] !== lastBuilding) {
+      const bin = buildingIdxToBinMap[buildings[j]]
+      const bbl = binToBBLMap[bin]
+      if (!bbl) noBBLFound += 1
+      const metadataRow = bblToMetadataMap[bbl]
+      if (!metadataRow) noMetadataRowFound += 1
+      if (metadataRow) metadataFound += 1
+      const fieldIdx = headerMap[fieldName]
+      // const metadataValue = metadataRow ? metadataRow[fieldIdx] : '???'
+      const metadataValue = buildingIdxToHeight[buildings[j]]
+      // const metadataValue = buildingIdxToWidth[buildings[j]]
+      if (!metadataValue) noMetadataFieldFound += 1
+      if (colorCache[metadataValue]) {
+        r = colorCache[metadataValue][0]
+        g = colorCache[metadataValue][1]
+        b = colorCache[metadataValue][2]
+      } else {
+        const color = rgb(scale(metadataValue))
+        r = !metadataRow ? 0 : color.r / 256
+        g = !metadataRow ? 0 : color.g / 256
+        b = !metadataRow ? 0 : color.b / 256
+        colorCache[metadataValue] = [r, g, b]
       }
-
-      positions.push(
-        vertices[v1Idx * 3 + 0], vertices[v1Idx * 3 + 1], vertices[v1Idx * 3 + 2],
-        vertices[v2Idx * 3 + 0], vertices[v2Idx * 3 + 1], vertices[v2Idx * 3 + 2],
-        vertices[v3Idx * 3 + 0], vertices[v3Idx * 3 + 1], vertices[v3Idx * 3 + 2]
-      )
-
-      buildings.push(buildingCount, buildingCount, buildingCount)
-
-      getNormal(
-        vertices[v1Idx * 3 + 0], vertices[v1Idx * 3 + 1], vertices[v1Idx * 3 + 2],
-        vertices[v2Idx * 3 + 0], vertices[v2Idx * 3 + 1], vertices[v2Idx * 3 + 2],
-        vertices[v3Idx * 3 + 0], vertices[v3Idx * 3 + 1], vertices[v3Idx * 3 + 2],
-        curNormal
-      )
-
-      normals.push(
-        curNormal[0], curNormal[1], curNormal[2],
-        curNormal[0], curNormal[1], curNormal[2],
-        curNormal[0], curNormal[1], curNormal[2]
-      )
+      lastBuilding = buildings[j]
     }
+    colors.push(r, g, b)
   }
+  console.log({ noBBLFound, metadataFound, noMetadataRowFound, noMetadataFieldFound })
+  console.log({ colorCache })
+  return colors
+}
 
-  function checkVertex(x, y, z) {
-    if (x < 978970 || y < 194470 || z < -40) {
-      console.log(`Something wrong with this vertex: ${x}, ${y}, ${z} - building ${buildingCount}`)
-      return false
+function createHeightLineup(mesh) {
+  const { buildingIdxToHeight, buildingIdxToWidth, buildingIdxToMinX } = mesh
+  console.log(buildingIdxToHeight.length)
+  const buildingsByHeight = buildingIdxToHeight
+    .map((height, idx) => ({
+      index: idx,
+      width: buildingIdxToWidth[idx],
+      height: height,
+      translateX: buildingIdxToMinX[idx] * -1
+    }))
+    .sort((a, b) => b.height - a.height < 0 ? -1 : 1)
+  return buildingsByHeight
+}
+
+function getEntropyAttributes(mesh) {
+  const { positions, buildings } = mesh
+  const randoms = []
+  let entropy, lastBuilding
+  for (let j = 0; j < positions.length / 3; j += 1) {
+    if (buildings[j] !== lastBuilding) {
+      entropy = Math.random()
+      lastBuilding = buildings[j]
     }
-    return true
+    randoms.push(entropy)
   }
+  return randoms
+}
 
-  console.log(buildingCount)
+function setup([mesh, metadata, binToBBLMap]) {
+  const { positions, normals, barys, buildings } = mesh
+  const { headerMap } = metadata
 
-  // For DA_WISE dataset
-  // mins: [ 978979.241500825, 194479.073690146, -39.0158999999985 ]
-  // maxs: [ 1009996.30348232, 259992.617531568, 1797.1066 ]
-  for (let i = 0; i < positions.length; i += 3) {
-    positions[i] = (positions[i] - 978979.241500825) / 1000
-    positions[i + 1] = (positions[i + 1] - 194479.073690146) / 1000
-    positions[i + 2] = (positions[i + 2] - 0) / 1000 // -39.0158999999985) / 1000
-  }
+  window.mesh = mesh
+  window.metadata = metadata
+  window.binToBBLMap = binToBBLMap
 
-  // For TUM dataset
-  // mins: [298393.34375, 59415.828125, 0]
-  // maxs: [307763.84375, 79010.984375, 377.5832824707031]
-  // for (let i = 0; i < positions.length; i += 3) {
-  //   positions[i] = (positions[i] - 298393.34375) / 1000
-  //   positions[i + 1] = (positions[i + 1] - 59415.828125) / 1000
-  //   positions[i + 2] = (positions[i + 2] - 0) / 1000
-  // }
+  const buildingsByHeight = createHeightLineup(mesh)
+  console.log(buildingsByHeight)
+
+  gui.add(settings, 'colorCodeField', Object.keys(headerMap)).onChange(() => {
+    colors({ data: getColorAttributes(mesh, metadata, binToBBLMap, settings.colorCodeField) })
+  })
+
+  const randoms = getEntropyAttributes(mesh, metadata)
+  const colors = regl.buffer(getColorAttributes(mesh, metadata, binToBBLMap, settings.colorCodeField))
 
   const render = regl({
     vert: glsl`
       attribute vec3 position;
       attribute vec3 normal;
+      attribute vec3 bary;
       attribute float building;
+      attribute float random;
+      attribute vec3 color;
 
       varying vec4 fragColor;
+      varying vec3 barycentric;
+      varying float camDistance;
+      varying float vOpacity;
 
       uniform float time;
+      uniform float startTime;
       uniform vec3 lightSource;
       uniform mat4 projection;
       uniform mat4 view;
+      uniform mat4 view2;
+      uniform float animationLength;
+      // uniform float t;
+
+      float rand(vec2 co){
+        return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+      }
 
       void main() {
-        gl_PointSize = 1.0;
-        float z = position.z;
-        // float z = position.z * sin(time / 2.0 + building) * 5.0;
-        gl_Position = projection * view * vec4(position.xy, z, 1.0);
+        barycentric = bary;
+        vOpacity = 1.0;
+
+        // float start = startTime + random * animationLength;
+        // float t = clamp((time - start) / animationLength, 0.0, 1.0);
+        // t = pow(1.0 - t, 4.0);
+
+        // float angle = rand(position.xy) * random + time * rand(position.yz);
+        // vec3 noiseOffset = vec3(sin(angle), cos(angle), sin(angle)) / 50.0;
+        // vec3 posNoise = position.xyz + noiseOffset;
+
+        // float z = mix(position.z, position.z + random * 10.0 + 5.0, t);
+        // vec4 firstPos = projection * view * vec4(posNoise, 1.0);
+        // vec4 secondPos = projection * view2 * vec4(posNoise, 1.0);
+        // vec4 pos = mix(firstPos, secondPos, t);
+        // gl_Position = pos;
+        // gl_Position = firstPos;
+
+        gl_Position = projection * view * vec4(position.xyz, 1);
+        // vOpacity = pow(1.0 - t, 3.0);
+
+        camDistance = gl_Position.z;
         float opacity = pow(1.0 - (gl_Position.z / 500.0), 8.0);
 
-        vec3 lightDirection = normalize(lightSource - position);
-        float dProd = dot(lightDirection, normal);
-        float lighten = clamp(dProd, 0.0, 1.0) * 0.65;
-        fragColor = vec4(vec3(lighten + 0.3) * opacity, opacity);
-        // fragColor = vec4(1.0);
+        vec3 lightDirection = lightSource;
+        float lighten = clamp(0.0, 1.0, dot(normalize(normal), normalize(lightDirection)));
 
-        // vec3 normalizedNormal = (normal + vec3(1.0) / 2.0);
-        // float average = (normalizedNormal.x + normalizedNormal.y + normalizedNormal.z) / 3.0;
-        // fragColor = vec4(vec3(average) * 0.9 + vec3(0.05), 1.0);
-        // fragColor = vec4(normalizedNormal + vec3(0.2), 1.0);
-        // fragColor = vec4(vec3(opacity + 0.55), opacity + 0.1);
+        fragColor = vec4(color, opacity);
+        // fragColor = mix(vec4(color, opacity), vec4(vec3(1), opacity), lighten);
+        // fragColor.rgb -= vec3(0.2);
       }
     `,
     frag: glsl`
+      #extension GL_OES_standard_derivatives : enable
+
       precision highp float;
       varying vec4 fragColor;
+      varying vec3 barycentric;
+      varying float camDistance;
+      varying float vOpacity;
+
+      uniform float thickness;
+      uniform float opacity;
+
+      float aastep (float threshold, float dist) {
+        float afwidth = fwidth(dist) * 0.5;
+        return smoothstep(threshold - afwidth, threshold + afwidth, dist);
+      }
+
       void main() {
-        gl_FragColor = fragColor;
+        float d = min(min(barycentric.x, barycentric.y), barycentric.z);
+        float positionAlong = max(barycentric.x, barycentric.y);
+        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
+          positionAlong = 1.0 - positionAlong;
+        }
+        if (thickness == 0.0) {
+          gl_FragColor = vec4(fragColor.rgb, opacity);
+        } else {
+          float computedThickness = thickness;
+          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
+          float edge = 1.0 - aastep(computedThickness, d);
+          gl_FragColor = mix(vec4(fragColor.rgb, opacity), vec4(0.18, 0.18, 0.18, 1.0), edge);
+        }
+        gl_FragColor.a = vOpacity * opacity;
       }
     `,
     uniforms: {
-      projection: ({viewportWidth, viewportHeight}) => mat4.perspective(
-        [],
-        Math.PI / 4,
-        viewportWidth / viewportHeight,
-        0.01,
-        1000
-      ),
-      view: () => camera.matrix,
+      projection: getProjection,
+      view: () => camera.getMatrix(),
+      view2: () => camera2.view,
+      animationLength: 15,
       time: ({ time }) => time,
+      startTime: regl.prop('startTime'),
+      t: () => settings.t,
       lightSource: ({ time }) => [
-        -100, // Math.sin(time / 2) * 1000,
-        0, // Math.cos((time + 20) / 3) * 800,
-        20 // (Math.sin(time / 7) + 1) * 5
-      ]
+        settings.lightSourceX, // -100, // Math.sin(time / 2) * 1000,
+        settings.lightSourceY, // 0, // Math.cos((time + 20) / 3) * 800,
+        settings.lightSourceZ // 20 // (Math.sin(time / 7) + 1) * 5
+      ],
+      thickness: () => settings.wireframeThickness,
+      opacity: () => settings.opacity
     },
     attributes: {
       position: positions,
       normal: normals,
-      building: buildings
+      building: buildings,
+      bary: barys,
+      random: randoms,
+      color: colors
     },
     cull: {
-      enable: true,
+      enable: false,
       face: 'back'
     },
-    // blend: {
-    //   enable: true,
-    //   func: {
-    //     srcRGB: 'src alpha',
-    //     srcAlpha: 1,
-    //     dstRGB: 'one minus src alpha',
-    //     dstAlpha: 1
-    //   },
-    //   equation: {
-    //     rgb: 'add',
-    //     alpha: 'add'
-    //   }
-    // },
+    blend: {
+      enable: true,
+      func: {
+        srcRGB: 'src alpha',
+        srcAlpha: 1,
+        dstRGB: 'one minus src alpha',
+        dstAlpha: 1
+      },
+      equation: {
+        rgb: 'add',
+        alpha: 'add'
+      }
+    },
     count: positions.length / 3,
     primitive: 'triangles'
   })
 
-  console.log(positions.length / 3)
-
-  regl.frame(({ time }) => {
-    if (window.stopAnimation) return
-    regl.clear({
-      color: [0.18, 0.18, 0.18, 1],
-      depth: 1
-    })
+  const renderFxaa = createFxaaRenderer(regl)
+  regl.frame((context) => {
     camera.tick()
-    // camera.up = [camera.up[0], camera.up[1], 999]
-    const x = Math.sin(time / 5) * 5 + 1
-    const y = Math.cos((time + 100) / 3) * 2 + 1
-    const z = Math.sin((time + 80) / 6) * 2 + 3
 
-    const xL = Math.sin((time + 20) / 7) * 2 + 8
-    const yL = Math.cos((time + 80) / 5) * 6 + 15
-    const zL = Math.sin((time) / 9) + 1
-
-    // camera.lookAt(
-    //   [x, y, z],
-    //   [xL, yL, zL],
-    //   [0, 0, 99999]
-    // )
-
-    render()
+    renderFxaa(context, () => {
+      regl.clear({
+        color: [1, 1, 1, 1], // [0.18, 0.18, 0.18, 1],
+        depth: 1
+      })
+      render({ startTime: 1 })
+    })
   })
 }

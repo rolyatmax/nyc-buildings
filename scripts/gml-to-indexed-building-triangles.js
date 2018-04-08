@@ -6,9 +6,12 @@
 // Each building's triangles are separated by a 4-byte delimiter: ff ff ff ff
 
 const path = require('path')
+// const fs = require('fs')
 const argv = require('minimist')(process.argv.slice(2))
 const readline = require('readline')
 const earcut = require('earcut')
+
+const WRITE_TO_STDOUT = false
 
 if (argv.h || argv.help) {
   console.log(
@@ -16,6 +19,14 @@ if (argv.h || argv.help) {
   )
   process.exit(0)
 }
+
+// load bin-to-bbl map
+// const binToBBLMap = {}
+// const file = fs.readFileSync(path.join(__dirname, '../models/uniquebblbin.csv'), 'utf8')
+// file.split('\r\n').slice(1).forEach(line => {
+//   const bits = line.split(',')
+//   binToBBLMap[bits[1]] = bits[0].replace(/"/g, '')
+// })
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -26,6 +37,7 @@ const rl = readline.createInterface({
 const BUILDING_DELIMITER = Buffer.from(Uint8Array.from([255, 255, 255, 255]))
 const VERTEX_LIST_DELIMITER = Buffer.from(Uint8Array.from([254, 255, 255, 255]))
 
+let binDoesntStartWith1 = 0
 let buildingCount = 0
 // either cityObjectMember or core:cityObjectMember
 rl.on('line', createFinder('core:cityObjectMember', function(xmlString) {
@@ -35,12 +47,32 @@ rl.on('line', createFinder('core:cityObjectMember', function(xmlString) {
   const vertexMap = {}
   const triangles = []
 
+  // get building's BIN
+  const binTagName = '<gen:stringAttribute name="BIN">'
+  const cutAt = xmlString.indexOf(binTagName) + binTagName.length
+  let binTag = xmlString.slice(cutAt)
+  binTag = binTag.slice(binTag.indexOf('<gen:value>') + '<gen:value>'.length)
+  const bin = binTag.slice(0, binTag.indexOf('</gen:value>'))
+  // skip non-Manhattan (all Manhattan BINs start with "1")
+  if (bin[0] !== '1') {
+    // if (!WRITE_TO_STDOUT) console.log('BIN doesn\'t start with "1":', binDoesntStartWith1++, bin)
+    return
+  }
+
+  // const bbl = parseInt(binToBBLMap[bin] || 0, 10)
+
   const findPosList = createFinder('gml:posList', handlePositionsTag)
   xmlString.split('\n').forEach(bit => {
     findPosList(bit + '\n')
   })
 
-  writeBuildingData(vertices, triangles)
+  if (bin === '1087485') {
+    console.log('FOUND!!!')
+    console.log('vertices:', vertices.length)
+    console.log('triangles:', triangles.length)
+  }
+
+  writeBuildingData(vertices, triangles, parseInt(bin, 10))
 
   function handlePositionsTag(xStr) {
     const nums = xStr.replace('<gml:posList>', '').replace('</gml:posList>', '').replace('\n', ' ').trim()
@@ -101,13 +133,16 @@ function checkVertex(x, y, z, buildingCount) {
 
 // let buildingsWithFewerThan255Verts = 0
 // let buildingsWithMoreThan255Verts = 0
-function writeBuildingData(vertices, triangles) {
+let noBuildingID = 0
+function writeBuildingData(vertices, triangles, buildingID) {
   // if (vertices.length / 3 > 255) {
   //   buildingsWithMoreThan255Verts += 1
   // } else {
   //   buildingsWithFewerThan255Verts += 1
   // }
   // console.log(buildingsWithFewerThan255Verts, buildingsWithMoreThan255Verts)
+
+  // if (!buildingID && !WRITE_TO_STDOUT) console.log('no building id:', noBuildingID++)
 
   const maxTriangleIdx = Math.max(...triangles)
   if (maxTriangleIdx + 1 !== vertices.length / 3) {
@@ -122,21 +157,25 @@ function writeBuildingData(vertices, triangles) {
   for (let v = 0; v < vertsArray.length; v += 3) {
     checkVertex(vertsArray[v], vertsArray[v + 1], vertsArray[v + 2], '?')
   }
-  process.stdout.write(Buffer.from(vertsArray.buffer))
-  process.stdout.write(VERTEX_LIST_DELIMITER)
-  // NOTE: LESS THAN 1% OF BUILDINGS REQUIRE Uint16Array FOR INDEXES
-  // THE REST CAN USE Uint8Array!
-  let TypedArray = Uint8Array
-  if (maxTriangleIdx < 256) {
-    TypedArray = Uint8Array
-    process.stdout.write(Buffer.from(Uint8Array.from([0])))
-  } else {
-    TypedArray = Uint16Array
-    process.stdout.write(Buffer.from(Uint8Array.from([1])))
+
+  if (WRITE_TO_STDOUT) {
+    process.stdout.write(Buffer.from((new Uint32Array([buildingID])).buffer))
+    process.stdout.write(Buffer.from(vertsArray.buffer))
+    process.stdout.write(VERTEX_LIST_DELIMITER)
+    // NOTE: LESS THAN 1% OF BUILDINGS REQUIRE Uint16Array FOR INDEXES
+    // THE REST CAN USE Uint8Array!
+    let TypedArray = Uint8Array
+    if (maxTriangleIdx < 256) {
+      TypedArray = Uint8Array
+      process.stdout.write(Buffer.from(Uint8Array.from([0])))
+    } else {
+      TypedArray = Uint16Array
+      process.stdout.write(Buffer.from(Uint8Array.from([1])))
+    }
+    const trisArray = new TypedArray(triangles)
+    process.stdout.write(Buffer.from(trisArray.buffer))
+    process.stdout.write(BUILDING_DELIMITER)
   }
-  const trisArray = new TypedArray(triangles)
-  process.stdout.write(Buffer.from(trisArray.buffer))
-  process.stdout.write(BUILDING_DELIMITER)
 }
 
 function getVertexName(x, y, z) {
