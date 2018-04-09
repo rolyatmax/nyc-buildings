@@ -1,4 +1,4 @@
-const getNormal = require('triangle-normal')
+// const getNormal = require('triangle-normal')
 
 const BUILDING_DELIMITER = [255, 255, 255, 255]
 const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
@@ -7,7 +7,7 @@ module.exports = function createMesh(buffer) {
   const buf = new Uint8Array(buffer)
 
   const positions = []
-  const normals = []
+  // const normals = []
   const buildings = []
   const barys = []
   const buildingBinToIdxMap = {}
@@ -15,9 +15,11 @@ module.exports = function createMesh(buffer) {
   const buildingIdxToHeight = []
   const buildingIdxToWidth = []
   const buildingIdxToMinX = []
+  const buildingIdxToMinY = []
   const buildingIdxToMinZ = []
+  const buildingIdxToCentroid = []
   let buildingCount = 0
-  let curNormal = [] // reuse this array
+  // let curNormal = [] // reuse this array
   let vertices = [] // reuse this array
 
   let curVertIdxByteSize = null
@@ -84,7 +86,6 @@ module.exports = function createMesh(buffer) {
     vertIdxByteSize,
     buildingID
   ) {
-    // if (buildingCount > 1000) return
     buildingIdxToBinMap[buildingCount] = buildingID
     buildingBinToIdxMap[buildingID] = buildingCount
     const b = buf.slice(chunkStart, chunkEnd)
@@ -93,6 +94,8 @@ module.exports = function createMesh(buffer) {
 
     let minX = Infinity
     let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
     let minZ = Infinity
     let maxZ = -Infinity
     for (let i = 0; i < vertices.length; i += 3) {
@@ -105,18 +108,19 @@ module.exports = function createMesh(buffer) {
 
       minX = Math.min(minX, vertices[i])
       maxX = Math.max(maxX, vertices[i])
+      minY = Math.min(minY, vertices[i + 1])
+      maxY = Math.max(maxY, vertices[i + 1])
       minZ = Math.min(minZ, vertices[i + 2])
       maxZ = Math.max(maxZ, vertices[i + 2])
-
-      // vertices[i] += (Math.random() * 2 - 1) * 0.05
-      // vertices[i + 1] += (Math.random() * 2 - 1) * 0.05
-      // vertices[i + 2] += (Math.random() * 2 - 1) * 0.05
     }
 
     buildingIdxToWidth[buildingCount] = maxX - minX
     buildingIdxToMinX[buildingCount] = minX
+    buildingIdxToMinY[buildingCount] = minY
     buildingIdxToHeight[buildingCount] = maxZ - minZ
     buildingIdxToMinZ[buildingCount] = minZ
+
+    buildingIdxToCentroid[buildingCount] = [(maxX + minX) / 2, (maxY + minY) / 2, (maxZ + minZ) / 2]
 
     if (vertIndexes.length % 3 !== 0) {
       throw new Error('ACK! Something is wrong with the triangles!')
@@ -163,39 +167,36 @@ module.exports = function createMesh(buffer) {
 
       buildings.push(buildingCount, buildingCount, buildingCount)
 
-      getNormal(
-        vertices[v1Idx * 3 + 0],
-        vertices[v1Idx * 3 + 1],
-        vertices[v1Idx * 3 + 2],
-        vertices[v2Idx * 3 + 0],
-        vertices[v2Idx * 3 + 1],
-        vertices[v2Idx * 3 + 2],
-        vertices[v3Idx * 3 + 0],
-        vertices[v3Idx * 3 + 1],
-        vertices[v3Idx * 3 + 2],
-        curNormal
-      )
+      // getNormal(
+      //   vertices[v1Idx * 3 + 0],
+      //   vertices[v1Idx * 3 + 1],
+      //   vertices[v1Idx * 3 + 2],
+      //   vertices[v2Idx * 3 + 0],
+      //   vertices[v2Idx * 3 + 1],
+      //   vertices[v2Idx * 3 + 2],
+      //   vertices[v3Idx * 3 + 0],
+      //   vertices[v3Idx * 3 + 1],
+      //   vertices[v3Idx * 3 + 2],
+      //   curNormal
+      // )
 
-      normals.push(
-        curNormal[0],
-        curNormal[1],
-        curNormal[2],
-        curNormal[0],
-        curNormal[1],
-        curNormal[2],
-        curNormal[0],
-        curNormal[1],
-        curNormal[2]
-      )
+      // normals.push(
+      //   curNormal[0],
+      //   curNormal[1],
+      //   curNormal[2],
+      //   curNormal[0],
+      //   curNormal[1],
+      //   curNormal[2],
+      //   curNormal[0],
+      //   curNormal[1],
+      //   curNormal[2]
+      // )
     }
   }
 
-  console.log('maxBuildingHeight:', Math.max(...buildingIdxToHeight))
-  console.log('minBuildingHeight:', Math.min(...buildingIdxToHeight))
-
   return {
     positions,
-    normals,
+    // normals,
     buildings,
     barys,
     buildingBinToIdxMap,
@@ -203,7 +204,8 @@ module.exports = function createMesh(buffer) {
     buildingIdxToHeight,
     buildingIdxToWidth,
     buildingIdxToMinX,
-    buildingIdxToMinZ
+    buildingIdxToMinZ,
+    buildingIdxToCentroid
   }
 
   function checkVertex(x, y, z) {

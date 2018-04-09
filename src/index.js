@@ -2,13 +2,9 @@ const createRegl = require('regl')
 const fit = require('canvas-fit')
 const glsl = require('glslify')
 const mat4 = require('gl-mat4')
-const { scaleSequential } = require('d3-scale')
-const { interpolateGnBu } = require('d3-scale-chromatic')
-const { rgb } = require('d3-color')
-// const createCamera = require('3d-view-controls')
-const createPerspectiveCamera = require('perspective-camera')
-const createRoamingCamera = require('./create-roaming-camera')
 const { GUI } = require('dat-gui')
+const createRoamingCamera = require('./create-roaming-camera')
+const createStateTransitioner = require('./create-state-transitioner')
 const createMesh = require('./create-mesh')
 const createFxaaRenderer = require('./render-fxaa')
 
@@ -30,8 +26,8 @@ const getProjection = () => mat4.perspective(
 // sideview of Manhattan:
 // center: "6.651801509045625, 16.327148056768706, -0.07823453668244912"
 // eye: "31.161953007311798, 5.723376647221853, 0.08826498790471207"
-const center = [11.402860183280717, 26.015250591595468, 3.2385829875405845] // [0, 0, 10]
-const eye = [9.644215914045503, 24.756498589454143, 0.5] // [4, 8, 0]
+const center = [0, 0, 10]
+const eye = [4, 8, 0]
 const camera = createRoamingCamera(canvas, center, eye, getProjection)
 
 window.addEventListener('keypress', (e) => {
@@ -43,44 +39,20 @@ window.addEventListener('keypress', (e) => {
   }
 })
 
-const camera2 = createPerspectiveCamera({
-  fov: Math.PI / 2,
-  near: 0.01,
-  far: 1000,
-  viewport: [0, 0, canvas.width, canvas.height]
-})
-
-camera2.translate([-3, 22, 0.7])
-camera2.lookAt([10, 20, 0])
-camera2.up = [0, 0, 99999]
-camera2.update()
-window.camera2 = camera2
-
 const settings = {
-  lightSourceX: -100,
-  lightSourceY: 0,
-  lightSourceZ: 20,
-  wireframeThickness: 0.1,
-  opacity: 0.45,
-  lineupScale: 0.04,
-  rowHeight: 0.75,
-  paddingX: 0.15,
-  paddingY: 3,
-  t: 0,
-  colorCodeField: 'YearBuilt'
+  wireframeThickness: 0.02,
+  opacity: 0.65,
+  animationSpeed: 0.1,
+  animationSpread: 3000,
+  colorCodeField: 'BldgClass'
 }
 
 const gui = new GUI()
-gui.add(settings, 'lightSourceX', -500, 500).step(1)
-gui.add(settings, 'lightSourceY', -500, 500).step(1)
-gui.add(settings, 'lightSourceZ', -500, 500).step(1)
 gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
 gui.add(settings, 'opacity', 0, 1).step(0.01)
-gui.add(settings, 'lineupScale', 0.01, 1).step(0.01)
-gui.add(settings, 'rowHeight', 0.01, 1).step(0.001)
-gui.add(settings, 'paddingX', 0.01, 1).step(0.01)
-gui.add(settings, 'paddingY', 0.01, 3).step(0.01)
-gui.add(settings, 't', 0, 1).step(0.01)
+gui.add(settings, 'animationSpeed', 0, 0.5).step(0.001)
+gui.add(settings, 'animationSpread', 1, 20000).step(1)
+gui.add(settings, 'colorCodeField', ['YearBuilt', 'BldgClass', 'ZoneDist1'])
 gui.add({ roam: camera.startRoaming }, 'roam')
 
 const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
@@ -115,7 +87,7 @@ function parseMetadataCSV(csvText) {
   const bblToMetadataMap = {}
   const bblColIDX = headerMap['BBL']
   const appbblColIDX = headerMap['APPBBL']
-  const rows = lines.slice(1).map(l => {
+  lines.slice(1).forEach(l => {
     const row = splitOnCSVComma(l)
     bblToMetadataMap[row[bblColIDX]] = row
     bblToMetadataMap[row[appbblColIDX]] = row
@@ -123,7 +95,6 @@ function parseMetadataCSV(csvText) {
   })
   return {
     headerMap,
-    rows,
     bblToMetadataMap
   }
 }
@@ -145,85 +116,6 @@ function splitOnCSVComma(line) {
   return parts
 }
 
-function getColorAttributes(mesh, metadata, binToBBLMap, fieldName) {
-  const { positions, buildings, buildingIdxToBinMap, buildingIdxToHeight, buildingIdxToWidth } = mesh
-  const { headerMap, bblToMetadataMap } = metadata
-  const colors = []
-  const colorCache = {}
-
-  const scale = scaleSequential(interpolateGnBu).domain([0.1, 1.8])
-
-  let r, g, b, lastBuilding
-  let noBBLFound = 0
-  let noMetadataRowFound = 0
-  let metadataFound = 0
-  let noMetadataFieldFound = 0
-  for (let j = 0; j < positions.length / 3; j += 1) {
-    if (buildings[j] !== lastBuilding) {
-      const bin = buildingIdxToBinMap[buildings[j]]
-      const bbl = binToBBLMap[bin]
-      if (!bbl) noBBLFound += 1
-      const metadataRow = bblToMetadataMap[bbl]
-      if (!metadataRow) noMetadataRowFound += 1
-      if (metadataRow) metadataFound += 1
-      const fieldIdx = headerMap[fieldName]
-      // const metadataValue = metadataRow ? metadataRow[fieldIdx] : '???'
-      const metadataValue = buildingIdxToHeight[buildings[j]]
-      // const metadataValue = buildingIdxToWidth[buildings[j]]
-      if (!metadataValue) noMetadataFieldFound += 1
-      if (colorCache[metadataValue]) {
-        r = colorCache[metadataValue][0]
-        g = colorCache[metadataValue][1]
-        b = colorCache[metadataValue][2]
-      } else {
-        const color = rgb(scale(metadataValue))
-        r = !metadataRow ? 0 : color.r / 256
-        g = !metadataRow ? 0 : color.g / 256
-        b = !metadataRow ? 0 : color.b / 256
-        colorCache[metadataValue] = [r, g, b]
-      }
-      lastBuilding = buildings[j]
-    }
-    colors.push(r, g, b)
-  }
-  console.log({ noBBLFound, metadataFound, noMetadataRowFound, noMetadataFieldFound })
-  console.log({ colorCache })
-  return colors
-}
-
-function createHeightLineup(mesh) {
-  const { buildingIdxToHeight, buildingIdxToWidth, buildingIdxToMinX, buildingIdxToMinZ, positions, buildings } = mesh
-  const buildingsByHeightMap = {}
-  const buildingsByHeight = buildingIdxToHeight
-    .map((height, idx) => ({
-      index: idx,
-      width: buildingIdxToWidth[idx],
-      height: height,
-      minX: buildingIdxToMinX[idx],
-      minZ: buildingIdxToMinZ[idx]
-    }))
-    .sort((a, b) => b.height - a.height < 0 ? -1 : 1)
-  let accumulatedWidth = 0
-  let paddingBetweenBuildings = 0.01
-  buildingsByHeight.forEach(bldg => {
-    buildingsByHeightMap[bldg.index] = bldg
-    bldg.xOffset = accumulatedWidth
-    accumulatedWidth += bldg.width + paddingBetweenBuildings
-  })
-
-  const lineupXOffsets = []
-  const lineupMinX = []
-  const lineupMinZ = []
-  for (let j = 0; j < positions.length / 3; j += 1) {
-    const bldg = buildingsByHeightMap[buildings[j]]
-    lineupXOffsets.push(bldg.xOffset)
-    lineupMinX.push(bldg.minX)
-    lineupMinZ.push(bldg.minZ)
-  }
-
-  return { lineupXOffsets, lineupMinX, lineupMinZ }
-}
-
 function getEntropyAttributes(mesh) {
   const { positions, buildings } = mesh
   const randoms = []
@@ -239,51 +131,50 @@ function getEntropyAttributes(mesh) {
 }
 
 function setup([mesh, metadata, binToBBLMap]) {
-  const { positions, normals, barys, buildings } = mesh
-  const { headerMap } = metadata
+  const { positions, barys, buildings, buildingIdxToBinMap, buildingIdxToCentroid } = mesh
 
-  window.mesh = mesh
-  window.metadata = metadata
-  window.binToBBLMap = binToBBLMap
-
-  const { lineupXOffsets, lineupMinX, lineupMinZ } = createHeightLineup(mesh)
-
-  gui.add(settings, 'colorCodeField', Object.keys(headerMap)).onChange(() => {
-    colors({ data: getColorAttributes(mesh, metadata, binToBBLMap, settings.colorCodeField) })
+  // maybe this stuff should be done in a "setupMetadata" step
+  const { bblToMetadataMap, headerMap } = metadata
+  const buildingIdxToMetadataList = buildingIdxToBinMap.map((bin, idx) => {
+    const bbl = binToBBLMap[bin]
+    if (!bbl) return { centroid: buildingIdxToCentroid[idx] }
+    const row = bblToMetadataMap[bbl]
+    if (!row) return { centroid: buildingIdxToCentroid[idx] }
+    return {
+      centroid: buildingIdxToCentroid[idx],
+      YearBuilt: parseInt(row[headerMap['YearBuilt']], 10),
+      ZoneDist1: row[headerMap['ZoneDist1']],
+      BldgClass: row[headerMap['BldgClass']]
+    }
   })
 
+  // returns { tick, getStateTexture, getStateIndexes }
+  const stateTransitioner = createStateTransitioner(regl, buildingIdxToMetadataList, settings)
+  const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
+  const stateIndexes = []
+  for (let i = 0; i < positions.length / 3; i++) {
+    stateIndexes.push(buildingIdxToStateIndexes[buildings[i]])
+  }
+
+  window.mesh = mesh
+  window.buildingIdxToMetadataList = buildingIdxToMetadataList
+
   const randoms = getEntropyAttributes(mesh, metadata)
-  const colors = regl.buffer(getColorAttributes(mesh, metadata, binToBBLMap, settings.colorCodeField))
 
   const render = regl({
     vert: glsl`
       attribute vec3 position;
-      attribute vec3 normal;
       attribute vec3 bary;
-      attribute float building;
       attribute float random;
-      attribute vec3 color;
-      attribute float lineupXOffset;
-      attribute float lineupMinX;
-      attribute float lineupMinZ;
+      attribute vec2 stateIndex;
 
       varying vec4 fragColor;
       varying vec3 barycentric;
-      varying float camDistance;
       varying float vOpacity;
 
-      uniform vec2 padding;
-      uniform float lineupScale;
-      uniform float rowHeight;
-      uniform vec2 viewport;
-      uniform float time;
-      uniform float startTime;
-      uniform vec3 lightSource;
+      uniform sampler2D buildingState;
       uniform mat4 projection;
       uniform mat4 view;
-      uniform mat4 view2;
-      uniform float animationLength;
-      // uniform float t;
 
       float rand(vec2 co){
         return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
@@ -293,48 +184,12 @@ function setup([mesh, metadata, binToBBLMap]) {
         barycentric = bary;
         vOpacity = 1.0;
 
-        // float start = startTime + random * animationLength;
-        // float t = clamp((time - start) / animationLength, 0.0, 1.0);
-        // t = pow(1.0 - t, 4.0);
+        vec3 color = texture2D(buildingState, stateIndex).rgb;
 
-        // float z = mix(position.z, position.z + random * 10.0 + 5.0, t);
-        // vec4 firstPos = projection * view * vec4(posNoise, 1.0);
-        // vec4 secondPos = projection * view2 * vec4(posNoise, 1.0);
-        // vec4 pos = mix(firstPos, secondPos, t);
-        // gl_Position = pos;
-        // gl_Position = firstPos;
-
-        // gl_Position = projection * view * vec4(position.xyz, 1);
-        // vOpacity = pow(1.0 - t, 3.0);
-
-        float aspect = viewport.x / viewport.y;
-        float screenCoordXOffset = lineupXOffset / aspect * lineupScale;
-        float rows = screenCoordXOffset / 2.0;
-        float calcScreenCordXOffset = fract(rows) * 2.0;
-        float calcXOffset = calcScreenCordXOffset * aspect / lineupScale;
-        rows = floor(rows);
-
-        gl_Position = vec4(
-          position.x - lineupMinX + padding.x + calcXOffset,
-          position.z - lineupMinZ - rowHeight * rows - padding.y,
-          0.0,
-          1.0
-        );
-
-        gl_Position.x /= aspect;
-        gl_Position.xy *= lineupScale;
-        gl_Position.xyz += vec3(-1.0, 1.0, 0.0);
-        fragColor = vec4(0.19, 0.19, 0.19, 1.0);
-
-        camDistance = gl_Position.z;
-        // float opacity = pow(1.0 - (gl_Position.z / 500.0), 8.0);
-
-        // vec3 lightDirection = lightSource;
-        // float lighten = clamp(0.0, 1.0, dot(normalize(normal), normalize(lightDirection)));
-
-        // fragColor = vec4(color, opacity);
-        // fragColor = mix(vec4(color, opacity), vec4(vec3(1), opacity), lighten);
-        // fragColor.rgb -= vec3(0.2);
+        gl_Position = projection * view * vec4(position.xyz, 1);
+        float camDistance = clamp(gl_Position.z / 2.0 + 0.5, 0.0, 1.0);
+        float opacity = pow(1.0 - camDistance, 8.0);
+        fragColor = vec4(color, opacity);
       }
     `,
     frag: glsl`
@@ -343,7 +198,6 @@ function setup([mesh, metadata, binToBBLMap]) {
       precision highp float;
       varying vec4 fragColor;
       varying vec3 barycentric;
-      varying float camDistance;
       varying float vOpacity;
 
       uniform float thickness;
@@ -355,9 +209,6 @@ function setup([mesh, metadata, binToBBLMap]) {
       }
 
       void main() {
-        gl_FragColor = fragColor;
-        return;
-
         float d = min(min(barycentric.x, barycentric.y), barycentric.z);
         float positionAlong = max(barycentric.x, barycentric.y);
         if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
@@ -377,33 +228,15 @@ function setup([mesh, metadata, binToBBLMap]) {
     uniforms: {
       projection: getProjection,
       view: () => camera.getMatrix(),
-      view2: () => camera2.view,
-      animationLength: 15,
-      time: ({ time }) => time,
-      startTime: regl.prop('startTime'),
-      t: () => settings.t,
-      lightSource: ({ time }) => [
-        settings.lightSourceX, // -100, // Math.sin(time / 2) * 1000,
-        settings.lightSourceY, // 0, // Math.cos((time + 20) / 3) * 800,
-        settings.lightSourceZ // 20 // (Math.sin(time / 7) + 1) * 5
-      ],
+      buildingState: stateTransitioner.getStateTexture,
       thickness: () => settings.wireframeThickness,
-      opacity: () => settings.opacity,
-      padding: () => [settings.paddingX, settings.paddingY],
-      lineupScale: () => settings.lineupScale,
-      rowHeight: () => settings.rowHeight,
-      viewport: ({ viewportWidth, viewportHeight }) => [viewportWidth, viewportHeight]
+      opacity: () => settings.opacity
     },
     attributes: {
       position: positions,
-      normal: normals,
-      building: buildings,
-      lineupMinX: lineupMinX,
-      lineupMinZ: lineupMinZ,
-      lineupXOffset: lineupXOffsets,
+      stateIndex: stateIndexes,
       bary: barys,
-      random: randoms,
-      color: colors
+      random: randoms
     },
     cull: {
       enable: false,
@@ -429,6 +262,8 @@ function setup([mesh, metadata, binToBBLMap]) {
   const renderFxaa = createFxaaRenderer(regl)
   regl.frame((context) => {
     camera.tick()
+
+    stateTransitioner.tick(context, settings)
 
     renderFxaa(context, () => {
       regl.clear({
