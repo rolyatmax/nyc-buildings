@@ -76,8 +76,9 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
 
   function tick () {
     camera.tick()
-    camera.eye = [focusX.tick(), focusY.tick(), 0.5]
+    camera.eye = [focusX.tick(), focusY.tick(), 0.1]
     camera.up = [camera.up[0], camera.up[1], 999]
+    // camera.center = [camera.center[0], camera.center[1], Math.max(camera.center[2], 0)]
     if (isRoaming) {
       camera.center = [cameraX.tick(), cameraY.tick(), cameraZ.tick()]
     }

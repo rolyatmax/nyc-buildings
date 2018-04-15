@@ -3,12 +3,13 @@ const fit = require('canvas-fit')
 const glsl = require('glslify')
 const mat4 = require('gl-mat4')
 const { GUI } = require('dat-gui')
+const createButtons = require('./create-buttons')
 const createRoamingCamera = require('./create-roaming-camera')
 const createStateTransitioner = require('./create-state-transitioner')
 const createMesh = require('./create-mesh')
 const createFxaaRenderer = require('./render-fxaa')
 
-const canvas = document.body.appendChild(document.createElement('canvas'))
+const canvas = document.body.appendChild(document.querySelector('.viz'))
 window.addEventListener('resize', fit(canvas), false)
 const regl = createRegl({
   extensions: ['oes_standard_derivatives', 'oes_texture_float'],
@@ -23,11 +24,13 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
+// {center: "10.342331412013948, 20.909690961642347, 0.5", eye: "37.031628438063215, 8.32822156988564, -0.027675636851704377"}
+
 // sideview of Manhattan:
 // center: "6.651801509045625, 16.327148056768706, -0.07823453668244912"
 // eye: "31.161953007311798, 5.723376647221853, 0.08826498790471207"
-const center = [0, 0, 10]
-const eye = [4, 8, 0]
+const center = [31.16195, 5.72337, 0] // [0, 0, 10]
+const eye = [6.6518, 16.32714, 0] // [4, 8, 0]
 const camera = createRoamingCamera(canvas, center, eye, getProjection)
 
 window.addEventListener('keypress', (e) => {
@@ -44,30 +47,34 @@ const settings = {
   opacity: 0.65,
   animationSpeed: 0.1,
   animationSpread: 3000,
-  colorCodeField: 'BldgClass'
+  colorCodeField: 'YearBuilt'
 }
 
 const gui = new GUI()
+gui.closed = true
 gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
 gui.add(settings, 'opacity', 0, 1).step(0.01)
-gui.add(settings, 'animationSpeed', 0, 0.5).step(0.001)
-gui.add(settings, 'animationSpread', 1, 20000).step(1)
-gui.add(settings, 'colorCodeField', ['YearBuilt', 'BldgClass', 'ZoneDist1'])
+// gui.add(settings, 'animationSpeed', 0, 0.5).step(0.001)
+// gui.add(settings, 'animationSpread', 1, 20000).step(1)
+// gui.add(settings, 'colorCodeField', ['YearBuilt', 'BldgClass', 'ZoneDist1'])
 gui.add({ roam: camera.startRoaming }, 'roam')
 
-const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
-  .then(res => res.arrayBuffer())
-  .then(createMesh)
+const renderButtons = createButtons(document.querySelector('.button-group'), settings)
+renderButtons(settings)
 
-const metadataFetch = window.fetch('models/pluto_csv/MN2017V11.csv')
-  .then(res => res.text())
-  .then(parseMetadataCSV)
+// const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
+//   .then(res => res.arrayBuffer())
+//   .then(createMesh)
 
-const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
-  .then(res => res.text())
-  .then(parseBinToBBLMapCSV)
+// const metadataFetch = window.fetch('models/pluto_csv/MN2017V11.csv')
+//   .then(res => res.text())
+//   .then(parseMetadataCSV)
 
-Promise.all([geometryFetch, metadataFetch, binToBBLMapFetch]).then(setup)
+// const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
+//   .then(res => res.text())
+//   .then(parseBinToBBLMapCSV)
+
+// Promise.all([geometryFetch, metadataFetch, binToBBLMapFetch]).then(setup)
 
 // NOTE: should probably just do this mapping up front when building the meshes?
 function parseBinToBBLMapCSV(csvText) {
@@ -131,7 +138,7 @@ function getEntropyAttributes(mesh) {
 }
 
 function setup([mesh, metadata, binToBBLMap]) {
-  const { positions, barys, buildings, buildingIdxToBinMap, buildingIdxToCentroid } = mesh
+  const { positions, barys, buildings, buildingIdxToBinMap, buildingIdxToCentroid, buildingIdxToHeight } = mesh
 
   // maybe this stuff should be done in a "setupMetadata" step
   const { bblToMetadataMap, headerMap } = metadata
@@ -144,7 +151,8 @@ function setup([mesh, metadata, binToBBLMap]) {
       centroid: buildingIdxToCentroid[idx],
       YearBuilt: parseInt(row[headerMap['YearBuilt']], 10),
       ZoneDist1: row[headerMap['ZoneDist1']],
-      BldgClass: row[headerMap['BldgClass']]
+      BldgClass: row[headerMap['BldgClass']],
+      Height: buildingIdxToHeight[idx]
     }
   })
 

@@ -194,6 +194,10 @@ module.exports = function createMesh(buffer) {
     }
   }
 
+  const minHeight = Math.min(...buildingIdxToHeight)
+  const maxHeight = Math.max(...buildingIdxToHeight)
+  console.log('Height range:', minHeight, maxHeight)
+
   return {
     positions,
     // normals,

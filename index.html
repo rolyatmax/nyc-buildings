@@ -21,8 +21,234 @@
   <meta name="twitter:title" content="audiofabric">
   <meta name="twitter:description" content="A 3D music visualization.">
   <meta name="twitter:image:src" content="https://tbaldw.in/audiofabric/images/audiofabric.png"> -->
+  
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet"> -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway:300" rel="stylesheet">
+  <style>
+    html, body {
+      color: #333;
+      font-family: 'Raleway', 'Open Sans', 'Helvetica Neue', Helvetica, sans-serif;
+    }
+    a {
+      text-decoration: none;
+    }
+
+    .card {
+      padding: 28px 0;
+      position: absolute;
+      left: 30px;
+      z-index: 1;
+      width: 310px;
+      border-radius: 3px;
+      background: #fff;
+      border: 1px solid #bbb;
+    }
+
+    .title {
+      top: 30px;
+      width: 310px;
+      border: 1px solid #bbb;
+      font-size: 17px;
+      background: #fff;
+      transition: width 500ms cubic-bezier(0.215, 0.610, 0.355, 1),
+                  font-size 500ms cubic-bezier(0.215, 0.610, 0.355, 1),
+                  border 500ms linear 400ms,
+                  background 500ms linear 300ms;
+    }
+    .title h1 {
+      font-weight: 200;
+      margin: 0;
+      padding: 0 35px;
+      letter-spacing: -1px;
+      line-height: 100%;
+    }
+
+    .instructions {
+      margin: 17px 0;
+      padding: 0 35px;
+      font-size: 15px;
+      line-height: 1.2rem;
+      color: #999;
+      opacity: 1;
+      transition: opacity 500ms linear 600ms;
+    }
+
+    .links {
+      padding: 0 35px;
+      margin: 15px 0 0;
+      opacity: 1;
+      transition: opacity 500ms linear 1100ms;
+    }
+    .links a {
+      padding: 10px 10px 10px 0;
+    }
+    .links svg {
+      fill: #777;
+      transition: fill 200ms linear;
+    }
+
+    .links a:hover svg {
+      fill : #333;
+    }
+
+    .for-intro .title {
+      background: none;
+      border: 1px solid #fff;
+      width: 750px;
+      font-size: 45px;
+    }
+
+    .for-intro .links {
+      opacity: 0;
+    }
+
+    .for-intro .instructions {
+      opacity: 0;
+    }
+
+    .for-intro .controls-container {
+      opacity: 0;
+    }
+
+    .controls-container {
+      padding-top: 0;
+      top: 275px;
+      opacity: 1;
+      transition: opacity 500ms linear 1500ms;
+    }
+
+    .controls-container .button-group {
+      width: 100%;
+      height: 62px;
+      display: flex;
+      position: relative;
+      /* border-bottom: 1px solid #999; */
+    }
+
+    .controls-container button:first-of-type {
+      border-left: 0;
+    }
+
+    .controls-container button.active {
+      color: #333;
+    }
+
+    .controls-container button {
+      flex-grow: 1;
+      width: 33.333333333%;
+      background: white;
+      outline: none;
+      border: 0;
+      /* border-left: 1px solid #999;
+      border-bottom: 1px solid #999; */
+      margin: 0;
+      height: 100%;
+      font-size: 12px;
+      color: #bbb;
+      cursor: pointer;
+      text-transform: uppercase;
+      line-height: 115%;
+      transition: color 200ms linear;
+    }
+
+    .controls-container button:hover {
+      color: #777;
+    }
+
+    .controls-container .arrow {
+      position: absolute;
+      border-right: 1px solid #333;
+      border-bottom: 1px solid #333;
+      width: 6px;
+      height: 6px;
+      top: 48px;
+      transform: rotate(45deg);
+      transition: transform 300ms cubic-bezier(0.215, 0.610, 0.355, 1);
+    }
+
+    .controls-container .axis-ticks {
+      display: flex;
+      justify-content: space-between;
+      justify-content: space-between;
+      padding: 0 35px;
+      font-size: 12px;
+    }
+
+    .keys {
+      position: relative;
+      height: 55px;
+    }
+
+    .key {
+      position: absolute;
+      opacity: 0;
+      transition: opacity 200ms linear;
+    }
+
+    .key.active {
+      opacity: 1;
+    }
+
+    .key img {
+      width: 310px;
+      height: 12px;
+      margin: 13px 0;
+    }
+  </style>
 </head>
-<body>
+<body class="fo r-intro">
+  <canvas class="viz"></canvas>
+  <!-- <div class="intro">
+    <div class="instructions">
+      <div>TURN YOUR SOUND ON</div>
+      <button>READY</button>
+    </div>
+    <div class="ios-instructions">
+      <h2>Unfortunately, I've had some issues getting this running on iOS. Please
+      take a look in a desktop browser. Preferably Chrome. 😬 <br><br> In the
+      meantime, here's a video (remember to turn on your sound!):</h2>
+      <video controls src="video/audiofabric.mov" type="video/quicktime" class="media-document iPhone video"></video>
+    </div>
+  </div> -->
+  <div class="title card">
+    <h1>All the Buildings in Manhattan</h1>
+    <div class="instructions">Drag & scroll to move around. Double-click to recenter the map.</div>
+    <div class="links">
+      <a href="https://github.com/rolyatmax/nyc-buildings" class="github-link">
+        <svg width="22px" height="22px" viewBox="0 0 30 30" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M15,0.0576923077 C6.72580645,0.0576923077 0.00806451613,6.91483516 0.00806451613,15.3791209 C0.00806451613,22.1456044 4.30645161,27.8901099 10.2580645,29.9175824 C11.0080645,30.0576923 11.25,29.5879121 11.25,29.1840659 L11.25,26.3241758 C7.08064516,27.2554945 6.20967742,24.5192308 6.20967742,24.5192308 C5.53225806,22.7472527 4.5483871,22.2774725 4.5483871,22.2774725 C3.18548387,21.3296703 4.65322581,21.3461538 4.65322581,21.3461538 C6.16129032,21.4532967 6.9516129,22.9285714 6.9516129,22.9285714 C8.29032258,25.2692308 10.4596774,24.5934066 11.3145161,24.1978022 C11.4516129,23.2087912 11.8387097,22.532967 12.266129,22.1456044 C8.93548387,21.7582418 5.43548387,20.4478022 5.43548387,14.5714286 C5.43548387,12.8983516 6.02419355,11.5302198 6.98387097,10.4587912 C6.83064516,10.0714286 6.31451613,8.51373626 7.12903226,6.40384615 C7.12903226,6.40384615 8.38709677,5.99175824 11.25,7.97802198 C12.4435484,7.64010989 13.7258065,7.46703297 15,7.45879121 C16.2741935,7.46703297 17.5564516,7.63186813 18.7580645,7.97802198 C21.6209677,6 22.8790323,6.40384615 22.8790323,6.40384615 C23.6935484,8.51373626 23.1854839,10.0714286 23.0241935,10.4587912 C23.983871,11.5302198 24.5645161,12.8983516 24.5645161,14.5714286 C24.5645161,20.456044 21.0564516,21.75 17.7177419,22.1291209 C18.2580645,22.6071429 18.75,23.5384615 18.75,24.9642857 L18.75,29.1675824 C18.75,29.5714286 18.9919355,30.0494505 19.75,29.9010989 C25.7016129,27.8736264 29.9919355,22.1291209 29.9919355,15.3626374 C29.9919355,6.91483516 23.2741935,0.0576923077 15,0.0576923077 L15,0.0576923077 Z"></path></svg>
+      </a>
+      <a href="https://twitter.com/taylorbaldwin" class="twitter-link">
+        <svg width='26px' height='22px' viewBox='0 0 36 30' version='1.1' xmlns='http://www.w3.org/2000/svg'><path d='M35.954717,3.55813953 C34.6301887,4.1627907 33.2150943,4.56976744 31.7207547,4.74418605 C33.2377358,3.80232558 34.4150943,2.3255814 34.9584906,0.558139535 C33.5320755,1.43023256 31.9584906,2.05813953 30.2830189,2.39534884 C28.9358491,0.930232558 27.0226415,0 24.9056604,0 C20.1509434,0 16.6528302,4.55813953 17.7283019,9.29069767 C11.6037736,8.97674419 6.16981132,5.96511628 2.53584906,1.38372093 C0.611320755,4.77906977 1.53962264,9.23255814 4.81132075,11.4883721 C3.6,11.4534884 2.46792453,11.1046512 1.47169811,10.5465116 C1.39245283,14.0581395 3.83773585,17.3372093 7.38113208,18.0581395 C6.33962264,18.3488372 5.20754717,18.4186047 4.05283019,18.1860465 C4.99245283,21.1976744 7.70943396,23.3837209 10.9358491,23.4418605 C7.83396226,25.9302326 3.93962264,27.0465116 0.0226415094,26.5813953 C3.28301887,28.7325581 7.15471698,29.9767442 11.3207547,29.9767442 C24.9962264,29.9767442 32.7283019,18.1046512 32.2641509,7.46511628 C33.7245283,6.40697674 34.9698113,5.08139535 35.954717,3.55813953 L35.954717,3.55813953 Z' /></svg>
+      </a>
+    </div>
+  </div>
+  <div class="controls-container card">
+    <div class="button-group"></div>
+    <div class="keys">
+      <div class="key YearBuilt">
+        <img src="/img/GnBu.png" />
+        <div class="axis-ticks">
+          <span>1800</span>
+          <span>2017</span>
+        </div>
+      </div>
+      <div class="key Height">
+        <img src="/img/cool.png" />
+        <div class="axis-ticks">
+          <span>0</span>
+          <span>1800 feet</span>
+        </div>
+      </div>
+    </div>
+  </div>
   <script src="bundle.js"></script>
+  <!-- <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-36884625-1', 'auto');
+    ga('send', 'pageview');
+  </script> -->
 </body>
 </html>

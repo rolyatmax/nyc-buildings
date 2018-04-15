@@ -1,6 +1,6 @@
 const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
-const { interpolateGnBu } = require('d3-scale-chromatic')
+const { interpolateGnBu, interpolateCool } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
 
 module.exports = function createStateTransitioner (regl, buildingIdxToMetadataList, settings) {
@@ -8,7 +8,7 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
   let lastChangeTime
 
   const buildings = buildingIdxToMetadataList
-  const buildingStateTextureSize = Math.ceil(Math.sqrt(buildings.length)) * 3
+  const buildingStateTextureSize = Math.ceil(Math.sqrt(buildings.length)) * 4
   const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
@@ -24,34 +24,40 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
   const stateIndexes = []
   const buildingMetaDataState = new Uint8Array(buildingStateTextureLength * 4)
   for (let j = 0; j < buildings.length; j++) {
-    const buildingStateIndexX = (j * 3) % buildingStateTextureSize
-    const buildingStateIndexY = (j * 3) / buildingStateTextureSize | 0
+    const buildingStateIndexX = (j * 4) % buildingStateTextureSize
+    const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
     stateIndexes.push([buildingStateIndexX / buildingStateTextureSize, buildingStateIndexY / buildingStateTextureSize])
 
     const metadata = buildings[j]
     let metadataValue, color
 
     metadataValue = metadata ? metadata['YearBuilt'] : null
-    color = metadataValue ? fieldToColorMappers['YearBuilt'](metadataValue) : [0, 0, 0]
-    buildingMetaDataState[j * 12] = color[0] * 255
-    buildingMetaDataState[j * 12 + 1] = color[1] * 255
-    buildingMetaDataState[j * 12 + 2] = color[2] * 255
+    color = metadataValue ? fieldToColorMappers['YearBuilt'](metadataValue) : [0.1, 0.1, 0.1]
+    buildingMetaDataState[j * 16] = color[0] * 255
+    buildingMetaDataState[j * 16 + 1] = color[1] * 255
+    buildingMetaDataState[j * 16 + 2] = color[2] * 255
 
     // max distance we're encountering here is around 50, so i'll multiply these by 4
     const center = [10.38, 21.57]
-    buildingMetaDataState[j * 12 + 3] = distance(metadata['centroid'], center) * 4
+    buildingMetaDataState[j * 16 + 3] = distance(metadata['centroid'], center) * 4
 
     metadataValue = metadata ? metadata['ZoneDist1'] : null
-    color = metadataValue ? fieldToColorMappers['ZoneDist1'](metadataValue) : [0, 0, 0]
-    buildingMetaDataState[j * 12 + 4] = color[0] * 255
-    buildingMetaDataState[j * 12 + 5] = color[1] * 255
-    buildingMetaDataState[j * 12 + 6] = color[2] * 255
+    color = metadataValue ? fieldToColorMappers['ZoneDist1'](metadataValue) : [0.1, 0.1, 0.1]
+    buildingMetaDataState[j * 16 + 4] = color[0] * 255
+    buildingMetaDataState[j * 16 + 5] = color[1] * 255
+    buildingMetaDataState[j * 16 + 6] = color[2] * 255
 
     metadataValue = metadata ? metadata['BldgClass'] : null
-    color = metadataValue ? fieldToColorMappers['BldgClass'](metadataValue) : [0, 0, 0]
-    buildingMetaDataState[j * 12 + 8] = color[0] * 255
-    buildingMetaDataState[j * 12 + 9] = color[1] * 255
-    buildingMetaDataState[j * 12 + 10] = color[2] * 255
+    color = metadataValue ? fieldToColorMappers['BldgClass'](metadataValue) : [0.1, 0.1, 0.1]
+    buildingMetaDataState[j * 16 + 8] = color[0] * 255
+    buildingMetaDataState[j * 16 + 9] = color[1] * 255
+    buildingMetaDataState[j * 16 + 10] = color[2] * 255
+
+    metadataValue = metadata ? metadata['Height'] : null
+    color = metadataValue ? fieldToColorMappers['Height'](metadataValue) : [0.1, 0.1, 0.1]
+    buildingMetaDataState[j * 16 + 12] = color[0] * 255
+    buildingMetaDataState[j * 16 + 13] = color[1] * 255
+    buildingMetaDataState[j * 16 + 14] = color[2] * 255
   }
 
   const buildingMetaDataTexture = createStateBuffer(buildingMetaDataState, buildingStateTextureSize)
@@ -88,6 +94,7 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       uniform bool showYearBuilt;
       uniform bool showZoneDist1;
       uniform bool showBldgClass;
+      uniform bool showHeight;
 
       varying vec2 buildingStateIndex;
 
@@ -107,6 +114,9 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
         }
         if (showBldgClass) {
           destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb;
+        }
+        if (showHeight) {
+          destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb;
         }
 
         // POTENTIAL OPTIMISATION: if curColor is within range of destColor, 
@@ -144,7 +154,8 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       animationSpread: regl.prop('animationSpread'),
       showYearBuilt: regl.prop('showYearBuilt'),
       showZoneDist1: regl.prop('showZoneDist1'),
-      showBldgClass: regl.prop('showBldgClass')
+      showBldgClass: regl.prop('showBldgClass'),
+      showHeight: regl.prop('showHeight')
     },
 
     count: 4,
@@ -166,7 +177,8 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       animationSpeed: curSettings.animationSpeed,
       showYearBuilt: curSettings.colorCodeField === 'YearBuilt',
       showZoneDist1: curSettings.colorCodeField === 'ZoneDist1',
-      showBldgClass: curSettings.colorCodeField === 'BldgClass'
+      showBldgClass: curSettings.colorCodeField === 'BldgClass',
+      showHeight: curSettings.colorCodeField === 'Height'
     })
   }
 
@@ -257,11 +269,19 @@ const fieldToColorMappers = {
     if (val.slice(0, 4) === 'PARK') return [229, 245, 224].map(v => v / 256)
     return [0.4, 0.4, 0.4]
   },
+  Height: (function() {
+    const domain = [0, 1.8] // 0 - 1800 feet
+    const scale = scaleSequential(interpolateCool).domain(domain)
+    return (val) => {
+      const color = rgb(scale(val))
+      return [color.r, color.g, color.b].map(v => v / 256)
+    }
+  })(),
   YearBuilt: (function() {
     const domain = [2017, 1820]
     const scale = scaleSequential(interpolateGnBu).domain(domain)
     return (val) => {
-      if (domain[1] > val) return [0, 0, 0]
+      if (domain[1] > val) return [0.1, 0.1, 0.1]
       const color = rgb(scale(val))
       return [color.r, color.g, color.b].map(v => v / 256)
     }
