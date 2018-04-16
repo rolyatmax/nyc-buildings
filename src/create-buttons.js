@@ -1,10 +1,10 @@
 module.exports = function createButtons (container, settings) {
   const createBtnEl = () => document.createElement('button')
   const buttons = [
-    { name: 'YearBuilt', label: 'Age', el: createBtnEl() },
-    { name: 'ZoneDist1', label: 'Zone', el: createBtnEl() },
-    { name: 'Height', label: 'Height', el: createBtnEl() },
-    { name: 'BldgClass', label: 'Building Class', el: createBtnEl() }
+    { name: 'built', label: 'Age', el: createBtnEl() },
+    { name: 'zone', label: 'Zone', el: createBtnEl() },
+    { name: 'height', label: 'Height', el: createBtnEl() },
+    { name: 'class', label: 'Building Class', el: createBtnEl() }
   ]
 
   buttons.forEach(({ name, label, el }) => {

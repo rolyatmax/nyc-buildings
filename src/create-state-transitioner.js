@@ -31,8 +31,8 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
     const metadata = buildings[j]
     let metadataValue, color
 
-    metadataValue = metadata ? metadata['YearBuilt'] : null
-    color = metadataValue ? fieldToColorMappers['YearBuilt'](metadataValue) : [0.1, 0.1, 0.1]
+    metadataValue = metadata ? metadata['built'] : null
+    color = metadataValue ? fieldToColorMappers['built'](metadataValue) : [0.1, 0.1, 0.1]
     buildingMetaDataState[j * 16] = color[0] * 255
     buildingMetaDataState[j * 16 + 1] = color[1] * 255
     buildingMetaDataState[j * 16 + 2] = color[2] * 255
@@ -41,20 +41,20 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
     const center = [10.38, 21.57]
     buildingMetaDataState[j * 16 + 3] = distance(metadata['centroid'], center) * 4
 
-    metadataValue = metadata ? metadata['ZoneDist1'] : null
-    color = metadataValue ? fieldToColorMappers['ZoneDist1'](metadataValue) : [0.1, 0.1, 0.1]
+    metadataValue = metadata ? metadata['zone'] : null
+    color = metadataValue ? fieldToColorMappers['zone'](metadataValue) : [0.1, 0.1, 0.1]
     buildingMetaDataState[j * 16 + 4] = color[0] * 255
     buildingMetaDataState[j * 16 + 5] = color[1] * 255
     buildingMetaDataState[j * 16 + 6] = color[2] * 255
 
-    metadataValue = metadata ? metadata['BldgClass'] : null
-    color = metadataValue ? fieldToColorMappers['BldgClass'](metadataValue) : [0.1, 0.1, 0.1]
+    metadataValue = metadata ? metadata['class'] : null
+    color = metadataValue ? fieldToColorMappers['class'](metadataValue) : [0.1, 0.1, 0.1]
     buildingMetaDataState[j * 16 + 8] = color[0] * 255
     buildingMetaDataState[j * 16 + 9] = color[1] * 255
     buildingMetaDataState[j * 16 + 10] = color[2] * 255
 
-    metadataValue = metadata ? metadata['Height'] : null
-    color = metadataValue ? fieldToColorMappers['Height'](metadataValue) : [0.1, 0.1, 0.1]
+    metadataValue = metadata ? metadata['height'] : null
+    color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0.1, 0.1, 0.1]
     buildingMetaDataState[j * 16 + 12] = color[0] * 255
     buildingMetaDataState[j * 16 + 13] = color[1] * 255
     buildingMetaDataState[j * 16 + 14] = color[2] * 255
@@ -91,9 +91,9 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       uniform float time;
       uniform float lastChangeTime;
 
-      uniform bool showYearBuilt;
-      uniform bool showZoneDist1;
-      uniform bool showBldgClass;
+      uniform bool showBuilt;
+      uniform bool showZone;
+      uniform bool showClass;
       uniform bool showHeight;
 
       varying vec2 buildingStateIndex;
@@ -106,13 +106,13 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
         float distFromCenter = firstSlot.a;
 
         vec3 destColor = vec3(0);
-        if (showYearBuilt) {
+        if (showBuilt) {
           destColor = firstSlot.rgb;
         }
-        if (showZoneDist1) {
+        if (showZone) {
           destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0)).rgb;
         }
-        if (showBldgClass) {
+        if (showClass) {
           destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb;
         }
         if (showHeight) {
@@ -152,9 +152,9 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       time: ({ time }) => time * 1000,
       animationSpeed: regl.prop('animationSpeed'),
       animationSpread: regl.prop('animationSpread'),
-      showYearBuilt: regl.prop('showYearBuilt'),
-      showZoneDist1: regl.prop('showZoneDist1'),
-      showBldgClass: regl.prop('showBldgClass'),
+      showBuilt: regl.prop('showBuilt'),
+      showZone: regl.prop('showZone'),
+      showClass: regl.prop('showClass'),
       showHeight: regl.prop('showHeight')
     },
 
@@ -175,10 +175,10 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
     updateState({
       animationSpread: curSettings.animationSpread,
       animationSpeed: curSettings.animationSpeed,
-      showYearBuilt: curSettings.colorCodeField === 'YearBuilt',
-      showZoneDist1: curSettings.colorCodeField === 'ZoneDist1',
-      showBldgClass: curSettings.colorCodeField === 'BldgClass',
-      showHeight: curSettings.colorCodeField === 'Height'
+      showBuilt: curSettings.colorCodeField === 'built',
+      showZone: curSettings.colorCodeField === 'zone',
+      showClass: curSettings.colorCodeField === 'class',
+      showHeight: curSettings.colorCodeField === 'height'
     })
   }
 
@@ -214,7 +214,7 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
 // use HSL for these?
 window.bldgClassCounts = {}
 const fieldToColorMappers = {
-  BldgClass(val) {
+  class(val) {
     window.bldgClassCounts[val] = window.bldgClassCounts[val] || 0
     window.bldgClassCounts[val] += 1
     switch (val[0]) {
@@ -262,22 +262,22 @@ const fieldToColorMappers = {
       //   return [0.4, 0.4, 0.4]
     }
   },
-  ZoneDist1(val) {
+  zone(val) {
     if (val[0] === 'R') return [49, 163, 84].map(v => v / 256)
     if (val[0] === 'C') return [49, 130, 189].map(v => v / 256)
     if (val[0] === 'M') return [254, 178, 76].map(v => v / 256)
     if (val.slice(0, 4) === 'PARK') return [229, 245, 224].map(v => v / 256)
     return [0.4, 0.4, 0.4]
   },
-  Height: (function() {
-    const domain = [0, 1.8] // 0 - 1800 feet
+  height: (function() {
+    const domain = [0, 1.6] // 0 - 1800 feet
     const scale = scaleSequential(interpolateCool).domain(domain)
     return (val) => {
       const color = rgb(scale(val))
       return [color.r, color.g, color.b].map(v => v / 256)
     }
   })(),
-  YearBuilt: (function() {
+  built: (function() {
     const domain = [2017, 1820]
     const scale = scaleSequential(interpolateGnBu).domain(domain)
     return (val) => {
