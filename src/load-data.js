@@ -5,7 +5,7 @@ module.exports = function loadData(regl, settings) {
   let onStartWrapper = (ctx) => onStart && onStart(ctx)
   let onDoneWrapper = (ctx) => onDone && onDone(ctx)
 
-  const metadataFetch = window.fetch('models/pluto_csv/MN2017V11.csv')
+  const metadataFetch = window.fetch('models/manhattan.pluto.filtered.csv')
     .then(res => res.text())
     .then(parseMetadataCSV)
 

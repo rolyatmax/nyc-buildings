@@ -3,64 +3,45 @@ const { scaleSequential } = require('d3-scale')
 const { interpolateGnBu, interpolateCool } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
 
-module.exports = function createStateTransitioner (regl, buildingIdxToMetadataList, settings) {
+// hardcoding so we can set this up early
+const BUILDINGS_COUNT = 45707
+
+module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
   let lastChangeTime
 
-  const buildings = buildingIdxToMetadataList
-  const buildingStateTextureSize = Math.ceil(Math.sqrt(buildings.length)) * 4
+  const buildingStateTextureSize = Math.ceil(Math.sqrt(BUILDINGS_COUNT)) * 4
   const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
-    initialBuildingState[i * 4] = 0 // r
-    initialBuildingState[i * 4 + 1] = 0 // g
-    initialBuildingState[i * 4 + 2] = 0 // b
+    initialBuildingState[i * 4] = 1 // r
+    initialBuildingState[i * 4 + 1] = 1 // g
+    initialBuildingState[i * 4 + 2] = 1 // b
+    initialBuildingState[i * 4 + 3] = 0 // a
   }
 
   let prevBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
   let curBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
   let nextbuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
 
-  const stateIndexes = []
   const buildingMetaDataState = new Uint8Array(buildingStateTextureLength * 4)
-  for (let j = 0; j < buildings.length; j++) {
+  const buildingMetaDataTexture = regl.texture({
+    data: buildingMetaDataState,
+    shape: [buildingStateTextureSize, buildingStateTextureSize, 4]
+  })
+  const buildingMetaDataBuffer = regl.framebuffer({
+    color: buildingMetaDataTexture,
+    depth: false,
+    stencil: false
+  })
+
+  const stateIndexes = []
+
+  for (let j = 0; j < BUILDINGS_COUNT; j++) {
     const buildingStateIndexX = (j * 4) % buildingStateTextureSize
     const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
     stateIndexes.push([buildingStateIndexX / buildingStateTextureSize, buildingStateIndexY / buildingStateTextureSize])
-
-    const metadata = buildings[j]
-    let metadataValue, color
-
-    metadataValue = metadata ? metadata['built'] : null
-    color = metadataValue ? fieldToColorMappers['built'](metadataValue) : [0.1, 0.1, 0.1]
-    buildingMetaDataState[j * 16] = color[0] * 255
-    buildingMetaDataState[j * 16 + 1] = color[1] * 255
-    buildingMetaDataState[j * 16 + 2] = color[2] * 255
-
-    // max distance we're encountering here is around 50, so i'll multiply these by 4
-    const center = [10.38, 21.57]
-    buildingMetaDataState[j * 16 + 3] = distance(metadata['centroid'], center) * 4
-
-    metadataValue = metadata ? metadata['zone'] : null
-    color = metadataValue ? fieldToColorMappers['zone'](metadataValue) : [0.1, 0.1, 0.1]
-    buildingMetaDataState[j * 16 + 4] = color[0] * 255
-    buildingMetaDataState[j * 16 + 5] = color[1] * 255
-    buildingMetaDataState[j * 16 + 6] = color[2] * 255
-
-    metadataValue = metadata ? metadata['class'] : null
-    color = metadataValue ? fieldToColorMappers['class'](metadataValue) : [0.1, 0.1, 0.1]
-    buildingMetaDataState[j * 16 + 8] = color[0] * 255
-    buildingMetaDataState[j * 16 + 9] = color[1] * 255
-    buildingMetaDataState[j * 16 + 10] = color[2] * 255
-
-    metadataValue = metadata ? metadata['height'] : null
-    color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0.1, 0.1, 0.1]
-    buildingMetaDataState[j * 16 + 12] = color[0] * 255
-    buildingMetaDataState[j * 16 + 13] = color[1] * 255
-    buildingMetaDataState[j * 16 + 14] = color[2] * 255
   }
-
-  const buildingMetaDataTexture = createStateBuffer(buildingMetaDataState, buildingStateTextureSize)
 
   const updateState = regl({
     framebuffer: () => nextbuildingStateTexture,
@@ -83,7 +64,7 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
 
       uniform sampler2D curBuildingStateTexture;
       uniform sampler2D prevBuildingStateTexture;
-      uniform sampler2D buildingMetaDataTexture;
+      uniform sampler2D buildingMetaDataBuffer;
 
       uniform float texelSize;
       uniform float animationSpeed;
@@ -95,28 +76,37 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       uniform bool showZone;
       uniform bool showClass;
       uniform bool showHeight;
+      uniform bool isLoading;
 
       varying vec2 buildingStateIndex;
 
       void main() {
-        vec3 curColor = texture2D(curBuildingStateTexture, buildingStateIndex).rgb;
-        // vec3 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex).rgb;
+        vec4 curColor = texture2D(curBuildingStateTexture, buildingStateIndex);
+        // vec4 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex);
 
-        vec4 firstSlot = texture2D(buildingMetaDataTexture, buildingStateIndex);
+        vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);
         float distFromCenter = firstSlot.a;
 
-        vec3 destColor = vec3(0);
-        if (showBuilt) {
-          destColor = firstSlot.rgb;
-        }
-        if (showZone) {
-          destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0)).rgb;
-        }
-        if (showClass) {
-          destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb;
-        }
-        if (showHeight) {
-          destColor = texture2D(buildingMetaDataTexture, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb;
+        vec4 destColor = vec4(1, 1, 1, 0);
+        if (isLoading) {
+          if (firstSlot.r == 1.0) {
+            destColor = vec4(0.22, 0.22, 0.25, 0.6);
+          } else {
+            destColor = curColor;
+          }
+        } else {
+          if (showBuilt) {
+            destColor = vec4(firstSlot.rgb, 1);
+          }
+          if (showZone) {
+            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0)).rgb, 1);
+          }
+          if (showClass) {
+            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb, 1);
+          }
+          if (showHeight) {
+            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);
+          }
         }
 
         // POTENTIAL OPTIMISATION: if curColor is within range of destColor, 
@@ -125,12 +115,10 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
         // distFromCenter is a float between 0->1
         // transition over 2 seconds
         float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;
-        float rate = time > start ? 1.0 : 0.0;
-        vec3 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;
+        float rate = (isLoading || time > start) ? 1.0 : 0.0;
+        vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;
 
-        // NOTE: use alpha position for z translate? To raise some buildings off the ground?
-
-        gl_FragColor = vec4(nextColor, 0.0);
+        gl_FragColor = nextColor;
       }
     `,
 
@@ -146,7 +134,7 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
     uniforms: {
       curBuildingStateTexture: () => curBuildingStateTexture,
       prevBuildingStateTexture: () => prevBuildingStateTexture,
-      buildingMetaDataTexture: buildingMetaDataTexture,
+      buildingMetaDataBuffer: () => buildingMetaDataBuffer,
       texelSize: 1 / buildingStateTextureSize,
       lastChangeTime: () => lastChangeTime * 1000,
       time: ({ time }) => time * 1000,
@@ -155,12 +143,69 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
       showBuilt: regl.prop('showBuilt'),
       showZone: regl.prop('showZone'),
       showClass: regl.prop('showClass'),
-      showHeight: regl.prop('showHeight')
+      showHeight: regl.prop('showHeight'),
+      isLoading: regl.prop('isLoading')
     },
 
     count: 4,
     primitive: 'triangle strip'
   })
+
+  let lastIdxLoaded = 0
+  function updateLoadingState(buildingIdxToMetadataList) {
+    for (let j = lastIdxLoaded; j < buildingIdxToMetadataList.length; j += 1) {
+      buildingMetaDataState[j * 16] = 255
+      lastIdxLoaded = j
+    }
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataBuffer({
+      color: buildingMetaDataTexture,
+      depth: false,
+      stencil: false
+    })
+  }
+
+  function setupMetaData(buildingIdxToMetadataList) {
+    const buildings = buildingIdxToMetadataList
+    for (let j = 0; j < BUILDINGS_COUNT; j++) {
+      const metadata = buildings[j]
+      let metadataValue, color
+
+      metadataValue = metadata ? metadata['built'] : null
+      color = metadataValue ? fieldToColorMappers['built'](metadataValue) : [0.1, 0.1, 0.1]
+      buildingMetaDataState[j * 16] = color[0] * 255
+      buildingMetaDataState[j * 16 + 1] = color[1] * 255
+      buildingMetaDataState[j * 16 + 2] = color[2] * 255
+
+      // max distance we're encountering here is around 50, so i'll multiply these by 4
+      const center = [10.38, 21.57]
+      buildingMetaDataState[j * 16 + 3] = distance(metadata['centroid'], center) * 4
+
+      metadataValue = metadata ? metadata['zone'] : null
+      color = metadataValue ? fieldToColorMappers['zone'](metadataValue) : [0.1, 0.1, 0.1]
+      buildingMetaDataState[j * 16 + 4] = color[0] * 255
+      buildingMetaDataState[j * 16 + 5] = color[1] * 255
+      buildingMetaDataState[j * 16 + 6] = color[2] * 255
+
+      metadataValue = metadata ? metadata['class'] : null
+      color = metadataValue ? fieldToColorMappers['class'](metadataValue) : [0.1, 0.1, 0.1]
+      buildingMetaDataState[j * 16 + 8] = color[0] * 255
+      buildingMetaDataState[j * 16 + 9] = color[1] * 255
+      buildingMetaDataState[j * 16 + 10] = color[2] * 255
+
+      metadataValue = metadata ? metadata['height'] : null
+      color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0.1, 0.1, 0.1]
+      buildingMetaDataState[j * 16 + 12] = color[0] * 255
+      buildingMetaDataState[j * 16 + 13] = color[1] * 255
+      buildingMetaDataState[j * 16 + 14] = color[2] * 255
+    }
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataBuffer({
+      color: buildingMetaDataTexture,
+      depth: false,
+      stencil: false
+    })
+  }
 
   function getStateIndexes () {
     return stateIndexes
@@ -174,11 +219,12 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
     cycleStates()
     updateState({
       animationSpread: curSettings.animationSpread,
-      animationSpeed: curSettings.animationSpeed,
+      animationSpeed: context.isLoading ? curSettings.loadingAnimationSpeed : curSettings.animationSpeed,
       showBuilt: curSettings.colorCodeField === 'built',
       showZone: curSettings.colorCodeField === 'zone',
       showClass: curSettings.colorCodeField === 'class',
-      showHeight: curSettings.colorCodeField === 'height'
+      showHeight: curSettings.colorCodeField === 'height',
+      isLoading: context.isLoading
     })
   }
 
@@ -189,7 +235,9 @@ module.exports = function createStateTransitioner (regl, buildingIdxToMetadataLi
   return {
     tick,
     getStateTexture,
-    getStateIndexes
+    getStateIndexes,
+    setupMetaData,
+    updateLoadingState
   }
 
   function createStateBuffer (initialState, textureSize) {

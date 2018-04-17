@@ -24,12 +24,13 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
         barycentric = bary;
         vOpacity = 1.0;
 
-        vec3 color = texture2D(buildingState, stateIndex).rgb;
+        vec4 color = texture2D(buildingState, stateIndex);
 
         gl_Position = projection * view * vec4(position.xyz, 1);
-        float camDistance = clamp(gl_Position.z / 2.0 + 0.5, 0.0, 1.0);
-        float opacity = pow(1.0 - camDistance, 8.0);
-        fragColor = vec4(color, opacity);
+        // float camDistance = clamp(gl_Position.z / 2.0 + 0.5, 0.0, 1.0);
+        // float opacity = pow(1.0 - camDistance, 8.0);
+        fragColor = color;
+        // fragColor.a *= opacity;
       }
     `,
     frag: glsl`
@@ -42,6 +43,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
 
       uniform float thickness;
       uniform float opacity;
+      uniform bool isLoading;
 
       float aastep (float threshold, float dist) {
         float afwidth = fwidth(dist) * 0.5;
@@ -49,6 +51,11 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       }
 
       void main() {
+        if (isLoading) {
+          gl_FragColor = fragColor;
+          return;
+        }
+
         float d = min(min(barycentric.x, barycentric.y), barycentric.z);
         float positionAlong = max(barycentric.x, barycentric.y);
         if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
@@ -93,6 +100,6 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       }
     },
     count: () => positionsBuffer._buffer.byteLength / 4 / 3,
-    primitive: 'triangles'
+    primitive: regl.prop('primitive') // 'triangles'
   })
 }
