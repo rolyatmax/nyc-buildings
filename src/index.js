@@ -112,7 +112,7 @@ loadData(regl, settings)
 
       if (loaded) {
         stateTransitioner.tick(context, settings)
-      } else if (Math.random() < 0.05) {
+      } else if (context.tick % 8 === 0) {
         const { positions, barys, randoms } = getLatest()
         updateBufferIfNeeded(positionsBuffer, positions)
         updateBufferIfNeeded(barysBuffer, barys)

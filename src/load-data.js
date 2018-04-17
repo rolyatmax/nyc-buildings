@@ -5,8 +5,6 @@ module.exports = function loadData(regl, settings) {
   let onStartWrapper = (ctx) => onStart && onStart(ctx)
   let onDoneWrapper = (ctx) => onDone && onDone(ctx)
 
-  const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
-
   const metadataFetch = window.fetch('models/pluto_csv/MN2017V11.csv')
     .then(res => res.text())
     .then(parseMetadataCSV)
@@ -20,7 +18,16 @@ module.exports = function loadData(regl, settings) {
     onDone: onDoneWrapper
   })
 
-  Promise.all([geometryFetch, metadataFetch, binToBBLMapFetch]).then(mungeData)
+  Promise.all([metadataFetch, binToBBLMapFetch])
+    .then(([metadata, binToBBLMap]) => {
+      const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
+      return Promise.all([
+        geometryFetch,
+        Promise.resolve(metadata),
+        Promise.resolve(binToBBLMap)
+      ])
+    })
+    .then(mungeData)
 
   return {
     onStart(cb) { onStart = cb; return this },

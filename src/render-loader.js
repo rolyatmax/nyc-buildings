@@ -51,6 +51,6 @@ module.exports = function createLoaderRenderer(regl, positionsBuffer, barysBuffe
       }
     },
     count: () => positionsBuffer._buffer.byteLength / 4 / 3,
-    primitive: 'lines'
+    primitive: 'triangles'
   })
 }

@@ -5,29 +5,37 @@ const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
 
 module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
   return function mungeData([meshRes, metadata, binToBBLMap]) {
-    const reader = meshRes.body.getReader()
-    let k = 0
     let isFirstChunk = true
     let isLastChunk = false
-    reader.read().then(function processStream({ done, value }) {
-      k += 1
-
-      if (isFirstChunk) {
-        processChunk(value)
-        onStart(getLatest)
-        isFirstChunk = false
-      } else {
-        requestIdleCallback(() => {
-          if (done) isLastChunk = true
+    if (meshRes.body && meshRes.body.getReader) {
+      let k = 0
+      const reader = meshRes.body.getReader()
+      reader.read().then(function processStream({ done, value }) {
+        k += 1
+        if (isFirstChunk) {
           processChunk(value)
-          if (done) {
-            requestIdleCallback(() => onDone(getLatest()))
-            console.log(k, 'chunks')
-          }
-        })
-      }
-      if (!done) return reader.read().then(processStream)
-    })
+          onStart(getLatest)
+          isFirstChunk = false
+        } else {
+          window.requestIdleCallback(() => {
+            if (done) isLastChunk = true
+            processChunk(value)
+            if (done) {
+              window.requestIdleCallback(() => onDone(getLatest()))
+              console.log(k, 'chunks')
+            }
+          })
+        }
+        if (!done) return reader.read().then(processStream)
+      })
+    } else {
+      meshRes.arrayBuffer().then((m) => {
+        isFirstChunk = isLastChunk = true
+        processChunk(new Uint8Array(m))
+        onStart(getLatest)
+        window.requestIdleCallback(() => onDone(getLatest()))
+      })
+    }
 
     let positions = []
     // let normals = []
