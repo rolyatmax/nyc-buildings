@@ -50,6 +50,7 @@
       border: 1px solid #bbb;
       font-size: 17px;
       background: #fff;
+      z-index: 5;
       transition: width 500ms cubic-bezier(0.215, 0.610, 0.355, 1),
                   font-size 500ms cubic-bezier(0.215, 0.610, 0.355, 1),
                   border 500ms linear 400ms,
@@ -93,9 +94,9 @@
 
     .for-intro .title {
       background: none;
-      border: 1px solid #fff;
-      width: 750px;
-      font-size: 45px;
+      border: 1px solid rgba(255, 255, 255, 0);
+      width: 600px;
+      font-size: 33px;
     }
 
     .for-intro .links {
@@ -108,13 +109,20 @@
 
     .for-intro .controls-container {
       opacity: 0;
+      transform: translateY(-100px);
+    }
+
+    .for-intro .loader {
+      opacity: 1;
     }
 
     .controls-container {
       padding-top: 0;
       top: 275px;
       opacity: 1;
-      transition: opacity 500ms linear 1500ms;
+      transform: translateY(0);
+      transition: opacity 400ms linear 2500ms,
+                  transform 800ms cubic-bezier(0.215, 0.610, 0.355, 1) 2500ms;
     }
 
     .controls-container .button-group {
@@ -194,9 +202,43 @@
       height: 12px;
       margin: 13px 0;
     }
+
+    .loader {
+      position: absolute;
+      width: 100vw;
+      z-index: 10;
+      left: 0;
+      top: 32vh;
+      opacity: 0;
+      transition: opacity 200ms linear;
+    }
+
+    .loader h2 {
+      font-size: 16px;
+      letter-spacing: 2px;
+      text-align: center;
+    }
+
+    .loading-bar {
+      width: 400px;
+      height: 5px;
+      background: #eee;
+      position: relative;
+      margin: 35px auto;
+    }
+
+    .loading-bar .loaded {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 100%;
+      background: #555;
+      transition: width 500ms cubic-bezier(0.445, 0.05, 0.55, 0.95);
+    }
   </style>
 </head>
-<body class="fo r-intro">
+<body class="for-intro">
   <canvas class="viz"></canvas>
   <!-- <div class="intro">
     <div class="instructions">
@@ -241,6 +283,15 @@
       </div>
     </div>
   </div>
+  <div class="loader">
+    <h2>LOADING</h2>
+    <div class="loading-bar">
+      <div class="loaded"></div>
+    </div>
+  </div>
+  <script>
+    window.DATA_VERSION = '1.0'
+  </script>
   <script src="bundle.js"></script>
   <!-- <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

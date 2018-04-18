@@ -7,7 +7,7 @@ const createButtons = require('./create-buttons')
 const createRoamingCamera = require('./create-roaming-camera')
 const createFxaaRenderer = require('./render-fxaa')
 const createBuildingsRenderer = require('./render-buildings')
-// const createLoaderRenderer = require('./render-loader')
+const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
 
 const canvas = document.body.appendChild(document.querySelector('.viz'))
@@ -27,26 +27,35 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
-// {center: "10.342331412013948, 20.909690961642347, 0.5", eye: "37.031628438063215, 8.32822156988564, -0.027675636851704377"}
-// {center: "7.234034555746952, 18.995379713976504, 0.1", eye: "12.574851384161036, -1.1428760197535723, 11.304425730963771"}
-// center: "15.172192322445927, 30.095814544877094, 0.1", eye: "22.510847429265105, 18.841792485436944, 58.50999691146506"
-// center: "9.731461234424584, 19.87800651428193, 0.1", eye: "0.9880186517241896, -3.5653395220754405, 1.1439781198122447
+// Empire close-up: { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] }
+// Downtown close-up: { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] }
+// Midtown from park: { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] }
 
-const center = [0.988, -3.565, 1.144] // [22.511, 18.841, 58.51] // [31.16195, 5.72337, 0] // [0, 0, 10] // [12.574, -1.142, 11.304]
-const eye = [9.731, 19.878, 0.1] // [15.172, 30.095, 0.1] // [6.6518, 16.32714, 0] // [4, 8, 0] // [7.234, 18.995, 0.1]
+const ABOVE = { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] }
+const FROM_SIDE = { center: [8.674, 16.334, 0.100], eye: [36.409, 11.720, 0.117] }
+const START_FROM_SIDE = { center: [8.674, 16.334, 2.100], eye: [36.409, 11.720, 2.117] }
+
+const center = START_FROM_SIDE.center
+const eye = START_FROM_SIDE.eye
 const camera = createRoamingCamera(canvas, center, eye, getProjection)
+
+window.moveTo = camera.moveTo
 
 window.addEventListener('keypress', (e) => {
   if (e.charCode === 32) {
-    console.log({
-      center: camera.getCenter().map(v => parseFloat(v)).join(', '),
-      eye: camera.getEye().map(v => parseFloat(v)).join(', ')
-    })
+    console.log('{',
+      'center:', `[${camera.getCenter().map(v => parseFloat(v).toFixed(3)).join(', ')}],`,
+      'eye:', `[${camera.getEye().map(v => parseFloat(v).toFixed(3)).join(', ')}]`, '}'
+    )
   }
 })
 
 const settings = {
-  wireframeThickness: 0.02,
+  // hardcoding so we can set up stateTransitioner early and show loading progress
+  BUILDINGS_COUNT: 45707,
+  // hardcoding so we can set up stateIndexes array early
+  POSITIONS_LENGTH: 32895792,
+  wireframeThickness: 0, // 0.005,
   opacity: 0.65,
   animationSpeed: 0.1,
   animationSpread: 3000,
@@ -63,9 +72,6 @@ gui.add({ roam: camera.startRoaming }, 'roam')
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
 renderButtons(settings)
 
-// hardcoding because ugh - i know it's bad
-const POSITIONS_LENGTH = 32895792
-
 const positionsBuffer = regl.buffer({ usage: 'dynamic' })
 const barysBuffer = regl.buffer({ usage: 'dynamic' })
 const randomsBuffer = regl.buffer({ usage: 'dynamic' })
@@ -76,16 +82,25 @@ window.positionsBuffer = positionsBuffer
 let globalStateRender, stateTransitioner, renderBuildings
 let loaded = false
 
-const renderFxaa = createFxaaRenderer(regl)
-loadData(regl, settings)
-  .onDone(({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) => {
-    stateTransitioner.setupMetaData(buildingIdxToMetadataList)
-    updateLoadingState({ positions, barys, randoms, buildings })
-    loaded = true
-    console.log('final:', buildingIdxToMetadataList.length)
-  })
+const loader = createLoaderRenderer(document.querySelector('.loader'))
 
-  .onStart((getLatest) => {
+const renderFxaa = createFxaaRenderer(regl)
+loadData(regl, settings, {
+  onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
+    loader.render(1)
+    updateLoadingState({ positions, barys, randoms, buildings })
+    console.log('final:', buildingIdxToMetadataList.length)
+    setTimeout(() => {
+      loader.remove()
+      camera.moveTo(ABOVE)
+      setTimeout(() => {
+        document.body.classList.remove('for-intro')
+        loaded = true
+        window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
+      }, 1500)
+    }, 200)
+  },
+  onStart(getLatest) {
     stateTransitioner = createStateTransitioner(regl, settings)
     renderBuildings = createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings)
 
@@ -110,6 +125,7 @@ loadData(regl, settings)
         console.log(latest.buildingIdxToMetadataList.length)
         stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
         updateLoadingState(latest)
+        loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
       }
 
       renderFxaa(context, () => {
@@ -122,7 +138,8 @@ loadData(regl, settings)
         })
       })
     })
-  })
+  }
+})
 
 function updateBufferIfNeeded(reglBuffer, dataArray) {
   if (reglBuffer._buffer.byteLength / 4 !== dataArray.length) {
@@ -137,7 +154,7 @@ function updateLoadingState({ positions, barys, randoms, buildings }) {
   updateBufferIfNeeded(randomsBuffer, randoms)
 }
 
-let stateIndexes = new Float32Array(POSITIONS_LENGTH / 3 * 2)
+let stateIndexes = new Float32Array(settings.POSITIONS_LENGTH / 3 * 2)
 let lastK = 0
 let lastI = 0
 function updateStateIndexes({ positions, buildings }) {

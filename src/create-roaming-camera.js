@@ -5,7 +5,7 @@ const pickRay = require('camera-picking-ray')
 const createCamera = require('3d-view-controls')
 
 module.exports = function createRoamingCamera(canvas, center, eye, getProjection) {
-  let isRoaming = false
+  let isMoving = false
   let timeout
 
   canvas.addEventListener('mousedown', stopRoaming)
@@ -15,17 +15,18 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     zoomSpeed: 4,
     distanceLimits: [0.05, 500]
   })
-  const [fX, fY] = eye
-  const cameraX = createInterpolator(0.005, center[0])
-  const cameraY = createInterpolator(0.005, center[1])
-  const cameraZ = createInterpolator(0.005, center[2])
 
-  const focusX = createInterpolator(0.08, fX)
-  const focusY = createInterpolator(0.08, fY)
+  const cameraX = createInterpolator(0.005, eye[0])
+  const cameraY = createInterpolator(0.005, eye[1])
+  const cameraZ = createInterpolator(0.005, eye[2])
+
+  const focusX = createInterpolator(0.02, center[0])
+  const focusY = createInterpolator(0.02, center[1])
+  const focusZ = createInterpolator(0.02, center[2])
 
   camera.lookAt(
-    center,
     eye,
+    center,
     [0, 0, 999]
   )
 
@@ -41,6 +42,7 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     setSpringsToCurrentCameraValues()
     focusX.updateValue(fX)
     focusY.updateValue(fY)
+    focusZ.updateValue(0.1)
 
     // clear this text selection nonsense on screen after double click
     if (document.selection && document.selection.empty) {
@@ -52,19 +54,20 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   }
 
   function setRandomCameraPosition () {
-    const newFocusX = fX + (Math.random() - 0.5) * 10
-    const newFocusY = fY + (Math.random() - 0.5) * 10
+    const newFocusX = center[0] + (Math.random() - 0.5) * 9
+    const newFocusY = center[1] + (Math.random() - 0.5) * 9
     focusX.updateValue(newFocusX)
     focusY.updateValue(newFocusY)
+    focusZ.updateValue(0.1)
 
     // const cameraXPos = cameraX.tick(false)
     // const cameraYPos = cameraY.tick(false)
 
-    cameraX.updateValue(newFocusX + (Math.random() - 0.5) * 10)
-    cameraY.updateValue(newFocusY + (Math.random() - 0.5) * 10)
-    cameraZ.updateValue(1 + Math.pow(Math.random(), 4) * 30)
+    cameraX.updateValue(newFocusX + (Math.random() - 0.5) * 20)
+    cameraY.updateValue(newFocusY + (Math.random() - 0.5) * 20)
+    cameraZ.updateValue(1 + Math.pow(Math.random(), 3) * 25)
   }
-  if (isRoaming) {
+  if (isMoving) {
     cameraRoamLoop()
   }
 
@@ -74,12 +77,24 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     setRandomCameraPosition()
   }
 
+  function moveTo ({ center, eye }) {
+    setSpringsToCurrentCameraValues()
+    isMoving = true
+    focusX.updateValue(center[0])
+    focusY.updateValue(center[1])
+    focusZ.updateValue(center[2])
+
+    cameraX.updateValue(eye[0])
+    cameraY.updateValue(eye[1])
+    cameraZ.updateValue(eye[2])
+  }
+
   function tick () {
     camera.tick()
-    camera.eye = [focusX.tick(), focusY.tick(), 0.1]
+    camera.eye = [focusX.tick(), focusY.tick(), focusZ.tick()]
     camera.up = [camera.up[0], camera.up[1], 999]
     // camera.center = [camera.center[0], camera.center[1], Math.max(camera.center[2], 0)]
-    if (isRoaming) {
+    if (isMoving) {
       camera.center = [cameraX.tick(), cameraY.tick(), cameraZ.tick()]
     }
   }
@@ -95,17 +110,18 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   function stopRoaming () {
     clearTimeout(timeout)
     timeout = null
-    isRoaming = false
+    isMoving = false
   }
   function startRoaming () {
     setSpringsToCurrentCameraValues()
     cameraRoamLoop()
-    isRoaming = true
+    isMoving = true
   }
 
   function setSpringsToCurrentCameraValues () {
     focusX.updateValue(camera.center[0], false)
     focusY.updateValue(camera.center[1], false)
+    focusZ.updateValue(camera.center[2], false)
 
     cameraX.updateValue(camera.eye[0], false)
     cameraY.updateValue(camera.eye[1], false)
@@ -118,7 +134,8 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     getMatrix,
     getCenter,
     getEye,
-    startRoaming
+    startRoaming,
+    moveTo
   }
 }
 

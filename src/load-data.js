@@ -1,37 +1,65 @@
+const localForage = require('localforage')
 const createDataMunger = require('./munge-data')
 
-module.exports = function loadData(regl, settings) {
-  let onStart, onDone
-  let onStartWrapper = (ctx) => onStart && onStart(ctx)
-  let onDoneWrapper = (ctx) => onDone && onDone(ctx)
+window.localForage = localForage
 
-  const metadataFetch = window.fetch('models/manhattan.pluto.filtered.csv')
-    .then(res => res.text())
-    .then(parseMetadataCSV)
-
-  const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
-    .then(res => res.text())
-    .then(parseBinToBBLMapCSV)
-
-  const mungeData = createDataMunger({
-    onStart: onStartWrapper,
-    onDone: onDoneWrapper
-  })
-
-  Promise.all([metadataFetch, binToBBLMapFetch])
-    .then(([metadata, binToBBLMap]) => {
-      const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
-      return Promise.all([
-        geometryFetch,
-        Promise.resolve(metadata),
-        Promise.resolve(binToBBLMap)
-      ])
+module.exports = function loadData(regl, settings, { onDone, onStart }) {
+  tryLoadingFromCache()
+    .then((data) => {
+      console.log('Data loaded from cache!')
+      onStart(() => data)
+      window.requestIdleCallback(() => onDone(data))
+    }).catch((err) => {
+      console.log('Cache loading error:', err)
+      startFetch()
     })
-    .then(mungeData)
 
-  return {
-    onStart(cb) { onStart = cb; return this },
-    onDone(cb) { onDone = cb; return this }
+  function tryLoadingFromCache() {
+    if (document.location.hash === '#nocache') {
+      return Promise.reject(new Error('skipping cached data'))
+    }
+    const keys = ['positions', 'barys', 'buildings', 'randoms', 'buildingIdxToMetadataList', 'DATA_VERSION']
+    return Promise.all(keys.map(k => localForage.getItem(k)))
+      .then((results) => {
+        const emptyResults = results.filter(v => !v || !v.length)
+        if (emptyResults.length) throw new Error('data not found in cache')
+        const [positions, barys, buildings, randoms, buildingIdxToMetadataList, DATA_VERSION] = results
+        if (window.DATA_VERSION !== DATA_VERSION) throw new Error('expired version of data found in cache')
+        return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+      })
+  }
+
+  function startFetch() {
+    const metadataFetch = window.fetch('models/manhattan.pluto.filtered.csv')
+      .then(res => res.text())
+      .then(parseMetadataCSV)
+
+    const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
+      .then(res => res.text())
+      .then(parseBinToBBLMapCSV)
+
+    const mungeData = createDataMunger({
+      onStart: onStart,
+      onDone: function onDoneWrapper(data) {
+        localForage.setItem('positions', new Float32Array(data.positions))
+        localForage.setItem('barys', new Float32Array(data.barys))
+        localForage.setItem('buildings', new Float32Array(data.buildings))
+        localForage.setItem('randoms', new Float32Array(data.randoms))
+        localForage.setItem('buildingIdxToMetadataList', data.buildingIdxToMetadataList)
+        localForage.setItem('DATA_VERSION', window.DATA_VERSION)
+        onDone(data)
+      }
+    })
+
+    Promise.all([metadataFetch, binToBBLMapFetch])
+      .then(([metadata, binToBBLMap]) => {
+        const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
+        return Promise.all([
+          geometryFetch,
+          Promise.resolve(metadata),
+          Promise.resolve(binToBBLMap)
+        ])
+      }).then(mungeData)
   }
 }
 

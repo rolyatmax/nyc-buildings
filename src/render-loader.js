@@ -1,56 +1,85 @@
-const glsl = require('glslify')
+module.exports = function createLoaderRenderer(element) {
+  const loadedEl = element.querySelector('.loaded')
+  let lowerBound = 0.05
+  let curT = 0
 
-module.exports = function createLoaderRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, settings) {
-  return regl({
-    vert: glsl`
-      attribute vec3 position;
+  let lastT = curT
+  setTimeout(function loop() {
+    if (curT < 1) setTimeout(loop, 1000)
+    if (lastT === curT) {
+      console.log('updating lowerBound!')
+      lowerBound += Math.random() * 0.02
+      lowerBound = Math.min(lowerBound, 0.95)
+      render(curT)
+    }
+    lastT = curT
+  }, 1000)
 
-      varying vec4 fragColor;
-      varying float vOpacity;
+  return { render, remove }
 
-      uniform mat4 projection;
-      uniform mat4 view;
+  function render(t) {
+    curT = t
+    t *= (1 - lowerBound)
+    t += lowerBound
+    let perc = (t * 100 | 0)
+    loadedEl.style.width = perc + '%'
+  }
 
-      void main() {
-        vOpacity = 1.0;
+  function remove() {
+    element.style.opacity = 0
+    setTimeout(() => element.parentElement.removeChild(element), 800)
+  }
 
-        vec3 color = vec3(0.15);
+  // return regl({
+  //   vert: glsl`
+  //     attribute vec3 position;
 
-        gl_PointSize = 1.0;
-        gl_Position = projection * view * vec4(position.xyz, 1);
-        float opacity = 0.2;
-        fragColor = vec4(color, opacity);
-      }
-    `,
-    frag: glsl`
-      precision highp float;
-      varying vec4 fragColor;
-      varying float vOpacity;
+  //     varying vec4 fragColor;
+  //     varying float vOpacity;
 
-      void main() {
-        gl_FragColor = fragColor;
-        gl_FragColor.a *= vOpacity;
-      }
-    `,
-    attributes: {
-      position: positionsBuffer,
-      bary: barysBuffer,
-      random: randomsBuffer
-    },
-    blend: {
-      enable: true,
-      func: {
-        srcRGB: 'src alpha',
-        srcAlpha: 1,
-        dstRGB: 'one minus src alpha',
-        dstAlpha: 1
-      },
-      equation: {
-        rgb: 'add',
-        alpha: 'add'
-      }
-    },
-    count: () => positionsBuffer._buffer.byteLength / 4 / 3,
-    primitive: 'triangles'
-  })
+  //     uniform mat4 projection;
+  //     uniform mat4 view;
+
+  //     void main() {
+  //       vOpacity = 1.0;
+
+  //       vec3 color = vec3(0.15);
+
+  //       gl_PointSize = 1.0;
+  //       gl_Position = projection * view * vec4(position.xyz, 1);
+  //       float opacity = 0.2;
+  //       fragColor = vec4(color, opacity);
+  //     }
+  //   `,
+  //   frag: glsl`
+  //     precision highp float;
+  //     varying vec4 fragColor;
+  //     varying float vOpacity;
+
+  //     void main() {
+  //       gl_FragColor = fragColor;
+  //       gl_FragColor.a *= vOpacity;
+  //     }
+  //   `,
+  //   attributes: {
+  //     position: positionsBuffer,
+  //     bary: barysBuffer,
+  //     random: randomsBuffer
+  //   },
+  //   blend: {
+  //     enable: true,
+  //     func: {
+  //       srcRGB: 'src alpha',
+  //       srcAlpha: 1,
+  //       dstRGB: 'one minus src alpha',
+  //       dstAlpha: 1
+  //     },
+  //     equation: {
+  //       rgb: 'add',
+  //       alpha: 'add'
+  //     }
+  //   },
+  //   count: () => positionsBuffer._buffer.byteLength / 4 / 3,
+  //   primitive: 'triangles'
+  // })
 }

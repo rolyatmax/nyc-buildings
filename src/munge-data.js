@@ -4,6 +4,17 @@ const BUILDING_DELIMITER = [255, 255, 255, 255]
 const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
 
 module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
+  let positions = []
+  // let normals = []
+  let buildings = []
+  let barys = []
+  let randoms = []
+  let buildingIdxToMetadataList = []
+
+  function getLatest () {
+    return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+  }
+
   return function mungeData([meshRes, metadata, binToBBLMap]) {
     let isFirstChunk = true
     let isLastChunk = false
@@ -37,13 +48,6 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
       })
     }
 
-    let positions = []
-    // let normals = []
-    let buildings = []
-    let barys = []
-    let randoms = []
-    const buildingIdxToMetadataList = []
-
     let buildingCount = 0
     // let curNormal = [] // reuse this array
     let vertices = [] // reuse this array
@@ -69,10 +73,6 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
     // buildings = new Uint32Array(buildings)
     // barys = new Float32Array(barys)
     // randoms = new Float32Array(randoms)
-
-    function getLatest () {
-      return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
-    }
 
     // ------------------------------------------------
     // ------------ processing functions

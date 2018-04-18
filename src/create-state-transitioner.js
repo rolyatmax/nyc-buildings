@@ -3,14 +3,11 @@ const { scaleSequential } = require('d3-scale')
 const { interpolateGnBu, interpolateCool } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
 
-// hardcoding so we can set this up early
-const BUILDINGS_COUNT = 45707
-
 module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
   let lastChangeTime
 
-  const buildingStateTextureSize = Math.ceil(Math.sqrt(BUILDINGS_COUNT)) * 4
+  const buildingStateTextureSize = Math.ceil(Math.sqrt(settings.BUILDINGS_COUNT)) * 4
   const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
@@ -37,7 +34,7 @@ module.exports = function createStateTransitioner (regl, settings) {
 
   const stateIndexes = []
 
-  for (let j = 0; j < BUILDINGS_COUNT; j++) {
+  for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
     const buildingStateIndexX = (j * 4) % buildingStateTextureSize
     const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
     stateIndexes.push([buildingStateIndexX / buildingStateTextureSize, buildingStateIndexY / buildingStateTextureSize])
@@ -167,7 +164,7 @@ module.exports = function createStateTransitioner (regl, settings) {
 
   function setupMetaData(buildingIdxToMetadataList) {
     const buildings = buildingIdxToMetadataList
-    for (let j = 0; j < BUILDINGS_COUNT; j++) {
+    for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
       const metadata = buildings[j]
       let metadataValue, color
 
