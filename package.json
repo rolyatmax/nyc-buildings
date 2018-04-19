@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "start": "budo src/index.js:bundle.js --live --open",
-    "build": "browserify src/index.js > bundle.js",
+    "build": "browserify src/index.js > bundle.js && gzip -k bundle.js",
     "serve": "open http://localhost:8080 && python -m SimpleHTTPServer 8080"
   },
   "dependencies": {
