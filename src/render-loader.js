@@ -3,6 +3,11 @@ module.exports = function createLoaderRenderer(element) {
   let lowerBound = 0.05
   let curT = 0
 
+  window.requestAnimationFrame(() => {
+    document.querySelector('.title h1').classList.remove('hidden')
+    element.classList.remove('hidden')
+  })
+
   let lastT = curT
   setTimeout(function loop() {
     if (curT < 1) setTimeout(loop, 1000)

@@ -1,6 +1,6 @@
 const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
-const { interpolateGnBu, interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
+const { interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
 const buildingClassToHues = require('./building-classes')
 

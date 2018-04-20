@@ -47,6 +47,7 @@
     .title {
       top: 30px;
       width: 310px;
+      opacity: 1;
       border: 1px solid #bbb;
       font-size: 17px;
       background: #fff;
@@ -56,6 +57,16 @@
                   border 500ms linear 400ms,
                   background 500ms linear 300ms;
     }
+
+    .title h1 {
+      opacity: 1;
+      transition: opacity 600ms linear;
+    }
+
+    .title h1.hidden {
+      opacity: 0;
+    }
+
     .title h1 {
       font-weight: 200;
       margin: 0;
@@ -150,16 +161,21 @@
 
     .for-intro .loader {
       opacity: 1;
+      transition-delay: 500ms;
+    }
+
+    .for-intro .loader.hidden {
+      opacity: 0;
     }
 
     .controls-container {
       padding-top: 0;
-      top: 290px;
+      top: 265px;
       opacity: 1;
       overflow: hidden;
       transform: translateY(0);
-      transition: opacity 400ms linear 2000ms,
-                  transform 800ms cubic-bezier(0.215, 0.610, 0.355, 1) 2000ms;
+      transition: opacity 400ms linear 1600ms,
+                  transform 800ms cubic-bezier(0.215, 0.610, 0.355, 1) 1600ms;
     }
 
     .controls-container .button-group {
@@ -308,7 +324,7 @@
     </div>
   </div> -->
   <div class="title card">
-    <h1>All the Buildings in Manhattan</h1>
+    <h1 class="hidden">All the Buildings in Manhattan</h1>
     <div class="instructions">Drag & scroll to move around. Double-click to recenter the map.</div>
     <div class="links">
       <a href="https://github.com/rolyatmax/nyc-buildings" class="github-link">
@@ -352,7 +368,7 @@
   <div class="source">
     <span>Source:</span><a href="https://nyc.gov">NYC 3D Model</a> & <a href="https://blah">NYC PLUTO</a>
   </div>
-  <div class="loader">
+  <div class="loader hidden">
     <h2>LOADING</h2>
     <div class="loading-bar">
       <div class="loaded"></div>
