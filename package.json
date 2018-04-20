@@ -21,6 +21,7 @@
     "earcut": "^2.1.3",
     "gl-mat4": "^1.1.4",
     "glsl-fxaa": "^3.0.0",
+    "glsl-hsl2rgb": "^1.1.0",
     "glslify": "^6.1.1",
     "libtess": "^1.2.2",
     "localforage": "^1.7.1",

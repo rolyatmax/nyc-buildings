@@ -11,7 +11,10 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
       window.requestIdleCallback(() => onDone(data))
     }).catch((err) => {
       console.log('Cache loading error:', err)
-      startFetch()
+      localForage.clear().then(() => {
+        console.log('Cache cleared')
+        startFetch()
+      })
     })
 
   function tryLoadingFromCache() {

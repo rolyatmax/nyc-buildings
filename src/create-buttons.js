@@ -1,10 +1,11 @@
+const buildingClassToHues = require('./building-classes')
+
 module.exports = function createButtons (container, settings) {
   const createBtnEl = () => document.createElement('button')
   const buttons = [
-    { name: 'built', label: 'Age', el: createBtnEl() },
-    { name: 'zone', label: 'Zone', el: createBtnEl() },
-    { name: 'height', label: 'Height', el: createBtnEl() },
-    { name: 'class', label: 'Building Class', el: createBtnEl() }
+    { name: 'built', label: 'Age', el: createBtnEl(), keysHeight: 55 },
+    { name: 'height', label: 'Height', el: createBtnEl(), keysHeight: 55 },
+    { name: 'class', label: 'Building Class', el: createBtnEl(), keysHeight: 140 }
   ]
 
   buttons.forEach(({ name, label, el }) => {
@@ -17,6 +18,8 @@ module.exports = function createButtons (container, settings) {
   const arrowEl = container.appendChild(document.createElement('div'))
   arrowEl.classList.add('arrow')
   arrowEl.style.left = (buttonWidth / 2 - 4) + 'px'
+
+  setupBuildingClassColors(document.querySelector('.controls-container .key.class'))
 
   function renderButtons (settings) {
     const button = buttons.find(btn => btn.name === settings['colorCodeField'])
@@ -32,6 +35,16 @@ module.exports = function createButtons (container, settings) {
       } else {
         el.classList.remove('active')
       }
+    })
+    const keysEl = document.querySelector('.controls-container .keys')
+    keysEl.style.height = `${button.keysHeight}px`
+  }
+
+  function setupBuildingClassColors(classKeyEl) {
+    Array.from(classKeyEl.querySelectorAll('ul li')).forEach((li) => {
+      const color = buildingClassToHues[li.dataset.classType]
+      if (!color) throw new Error(`No color defined for class type: ${li.dataset.classType}`)
+      li.querySelector('span').style.backgroundColor = `rgb(${color.join(', ')})`
     })
   }
 

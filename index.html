@@ -184,13 +184,14 @@
 
     .keys {
       position: relative;
-      height: 55px;
+      height: 140px;
+      transition: height 300ms cubic-bezier(0.445, 0.05, 0.55, 0.95);
     }
 
     .key {
       position: absolute;
       opacity: 0;
-      transition: opacity 200ms linear;
+      transition: opacity 300ms linear;
     }
 
     .key.active {
@@ -201,6 +202,23 @@
       width: 310px;
       height: 12px;
       margin: 13px 0;
+    }
+
+    .key ul {
+      list-style: none;
+      font-size: 14px;
+    }
+
+    .key li {
+      margin: 4px;
+    }
+
+    .key li span {
+      height: 13px;
+      width: 13px;
+      margin-right: 8px;
+      display: inline-block;
+      border-radius: 50%;
     }
 
     .loader {
@@ -268,7 +286,7 @@
     <div class="button-group"></div>
     <div class="keys">
       <div class="key built">
-        <img src="img/GnBu.png" />
+        <img src="img/magma.png" />
         <div class="axis-ticks">
           <span>1800</span>
           <span>2017</span>
@@ -280,6 +298,17 @@
           <span>0</span>
           <span>1800 feet</span>
         </div>
+      </div>
+      <div class="key class">
+        <ul>
+          <li data-class-type="walkup-and-mixed-use"><span></span> Walk-ups & mixed-use rentals</li>
+          <li data-class-type="elevator"><span></span> Elevator rentals</li>
+          <li data-class-type="co-op"><span></span> Co-ops</li>
+          <li data-class-type="condo"><span></span> Condos</li>
+          <li data-class-type="one-or-two-family"><span></span> 1-2 Family homes</li>
+          <li data-class-type="hotel"><span></span> Hotels</li>
+          <li data-class-type="non-residential"><span></span> Non-residential</li>
+        </ul>
       </div>
     </div>
   </div>

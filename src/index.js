@@ -27,16 +27,17 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
-// Empire close-up: { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] }
-// Downtown close-up: { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] }
-// Midtown from park: { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] }
-
+const ESB_CLOSE_UP = { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] }
+const DOWNTOWN_CLOSE_UP = { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] }
+const MIDTOWN_FROM_PARK = { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] }
 const ABOVE = { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] }
 const FROM_SIDE = { center: [8.674, 16.334, 0.100], eye: [36.409, 11.720, 0.117] }
-const START_FROM_SIDE = { center: [8.674, 16.334, 2.100], eye: [36.409, 11.720, 2.117] }
+const START_FROM_SIDE = { center: [8.674, 16.334, 2], eye: [36.409, 11.720, 2.117] }
+const START_FROM_NJ = { center: [8.674, 16.334, 5], eye: [-19.003, 2.133, 8.623] }
+const START_FROM_BK = { center: [8.807, 19.479, 3], eye: [15.724, -15.344, 10.548] }
 
-const center = START_FROM_SIDE.center
-const eye = START_FROM_SIDE.eye
+const center = START_FROM_BK.center
+const eye = START_FROM_BK.eye
 const camera = createRoamingCamera(canvas, center, eye, getProjection)
 
 window.moveTo = camera.moveTo
@@ -55,18 +56,24 @@ const settings = {
   BUILDINGS_COUNT: 45707,
   // hardcoding so we can set up stateIndexes array early
   POSITIONS_LENGTH: 32895792,
-  wireframeThickness: 0, // 0.005,
+  wireframeThickness: 0.003,
+  wireframeDistanceThreshold: 9,
   opacity: 0.65,
   animationSpeed: 0.1,
   animationSpread: 3000,
   loadingAnimationSpeed: 0.005,
-  colorCodeField: 'built'
+  colorCodeField: 'class',
+  primitive: 'triangles',
+  showFewerBuildings: false
 }
 
 const gui = new GUI()
 gui.closed = true
-gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
+gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
+gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
+gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
 gui.add(settings, 'opacity', 0, 1).step(0.01)
+gui.add(settings, 'showFewerBuildings')
 gui.add({ roam: camera.startRoaming }, 'roam')
 
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
@@ -134,7 +141,11 @@ loadData(regl, settings, {
           depth: 1
         })
         globalStateRender(() => {
-          renderBuildings({ primitive: loaded ? 'triangles' : 'lines' })
+          renderBuildings({
+            primitive: loaded ? settings.primitive : 'lines',
+            // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
+            countMultiplier: settings.showFewerBuildings ? 0.495 : 1
+          })
         })
       })
     })

@@ -1,7 +1,7 @@
 const glsl = require('glslify')
 
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
-  return regl({
+  const renderBuildings = regl({
     vert: glsl`
       attribute vec3 position;
       attribute vec3 bary;
@@ -10,7 +10,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
 
       varying vec4 fragColor;
       varying vec3 barycentric;
-      varying float vOpacity;
+      varying float cameraDistance;
 
       uniform sampler2D buildingState;
       uniform mat4 projection;
@@ -21,16 +21,14 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       }
 
       void main() {
+        gl_PointSize = 1.5;
         barycentric = bary;
-        vOpacity = 1.0;
 
         vec4 color = texture2D(buildingState, stateIndex);
 
         gl_Position = projection * view * vec4(position.xyz, 1);
-        // float camDistance = clamp(gl_Position.z / 2.0 + 0.5, 0.0, 1.0);
-        // float opacity = pow(1.0 - camDistance, 8.0);
+        cameraDistance = gl_Position.z;
         fragColor = color;
-        // fragColor.a *= opacity;
       }
     `,
     frag: glsl`
@@ -39,8 +37,9 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       precision highp float;
       varying vec4 fragColor;
       varying vec3 barycentric;
-      varying float vOpacity;
+      varying float cameraDistance;
 
+      uniform float wireframeDistanceThreshold;
       uniform float thickness;
       uniform float opacity;
       uniform bool isLoading;
@@ -62,17 +61,20 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
           positionAlong = 1.0 - positionAlong;
         }
         if (thickness == 0.0) {
-          gl_FragColor = vec4(fragColor.rgb, opacity);
+          gl_FragColor = fragColor;
+          gl_FragColor.a *= opacity;
         } else {
           float computedThickness = thickness;
           computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
-          float edge = 1.0 - aastep(computedThickness, d);
-          gl_FragColor = mix(vec4(fragColor.rgb, opacity), vec4(0.18, 0.18, 0.18, 1.0), edge);
+          float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
+          float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
+          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0), edge);
+          gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));
         }
-        gl_FragColor.a = vOpacity * opacity;
       }
     `,
     uniforms: {
+      wireframeDistanceThreshold: () => settings.wireframeDistanceThreshold,
       thickness: () => settings.wireframeThickness,
       opacity: () => settings.opacity
     },
@@ -99,7 +101,14 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
         alpha: 'add'
       }
     },
-    count: () => positionsBuffer._buffer.byteLength / 4 / 3,
+    count: regl.prop('count'),
     primitive: regl.prop('primitive') // 'triangles'
   })
+
+  return function render({ primitive, countMultiplier }) {
+    renderBuildings({
+      primitive,
+      count: (positionsBuffer._buffer.byteLength / 4 / 3 * countMultiplier) | 0
+    })
+  }
 }
