@@ -103,8 +103,15 @@ module.exports = function createStateTransitioner (regl, settings) {
           }
         }
 
+        // TEMP EXPERIMENT: Let's store height in the alpha channel just to see if it works well
+        if (destColor.rgb != vec3(0)) {
+          destColor.a = 1.0;
+        }
+
         if (destColor.rgb == vec3(0)) {
           destColor = vec4(0.4, 0.4, 0.4, 0.3);
+          // EXPERIMENT! - set height offset in alpha channel
+          destColor.a = 0.0;
         }
 
         // POTENTIAL OPTIMISATION: if curColor is within range of destColor, 

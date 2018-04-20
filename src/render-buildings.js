@@ -11,6 +11,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       varying vec4 fragColor;
       varying vec3 barycentric;
       varying float cameraDistance;
+      varying float zOffset;
 
       uniform sampler2D buildingState;
       uniform mat4 projection;
@@ -26,9 +27,16 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
 
         vec4 color = texture2D(buildingState, stateIndex);
 
-        gl_Position = projection * view * vec4(position.xyz, 1);
+        // EXPERIMENT! - set height offset in alpha channel
+        // gl_Position = projection * view * vec4(position.xyz, 1);
+        zOffset = (color.a - 1.0);
+        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.1, 1);
+
         cameraDistance = gl_Position.z;
-        fragColor = color;
+        
+        // EXPERIMENT! - set height offset in alpha channel
+        // fragColor = color;
+        fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);
       }
     `,
     frag: glsl`
@@ -38,6 +46,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       varying vec4 fragColor;
       varying vec3 barycentric;
       varying float cameraDistance;
+      varying float zOffset;
 
       uniform float wireframeDistanceThreshold;
       uniform float thickness;
@@ -52,6 +61,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       void main() {
         if (isLoading) {
           gl_FragColor = fragColor;
+          gl_FragColor.a = 0.1;
           return;
         }
 
@@ -68,7 +78,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
           computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
           float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
           float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
-          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0), edge);
+          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);
           gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));
         }
       }
