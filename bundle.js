@@ -236,7 +236,7 @@ function createCamera(element, options) {
   return camera
 }
 
-},{"3d-view":2,"has-passive-events":60,"mouse-change":68,"mouse-event-offset":69,"mouse-wheel":71,"right-now":78}],2:[function(require,module,exports){
+},{"3d-view":2,"has-passive-events":60,"mouse-change":68,"mouse-event-offset":69,"mouse-wheel":71,"right-now":79}],2:[function(require,module,exports){
 'use strict'
 
 module.exports = createViewController
@@ -359,7 +359,7 @@ function createViewController(options) {
     matrix: matrix
   }, mode)
 }
-},{"matrix-camera-controller":67,"orbit-camera-controller":73,"turntable-camera-controller":80}],3:[function(require,module,exports){
+},{"matrix-camera-controller":67,"orbit-camera-controller":73,"turntable-camera-controller":81}],3:[function(require,module,exports){
 'use strict';
 module.exports = function (arr) {
 	if (!Array.isArray(arr)) {
@@ -14916,7 +14916,7 @@ function mouseWheelListen(element, callback, noScroll) {
   return listener
 }
 
-},{"to-px":79}],72:[function(require,module,exports){
+},{"to-px":80}],72:[function(require,module,exports){
 'use strict'
 
 module.exports = quatFromFrame
@@ -15541,6 +15541,117 @@ t),O=T.next,H=m.canvas,E=[],S=[],U=[],R=[a.onDestroy],ba=null;H&&(H.addEventList
 P.extensions.indexOf(a.toLowerCase())},read:D,destroy:function(){E.length=0;d();H&&(H.removeEventListener("webglcontextlost",f),H.removeEventListener("webglcontextrestored",k));N.clear();I.clear();L.clear();z.clear();Q.clear();G.clear();x&&x.clear();R.forEach(function(a){a()})},_gl:m,_refresh:l,poll:function(){v();x&&x.update()},now:u,stats:w});a.onDone(null,e);return e}});
 
 },{}],78:[function(require,module,exports){
+/**
+ * Created by Denis Radin aka PixelsCommander
+ * http://pixelscommander.com
+ *
+ * Polyfill is build around the principe that janks are most harmful to UX when user is continously interacting with app.
+ * So we are basically preventing operation from being executed while user interacts with interface.
+ * Currently this implies scrolls, taps, clicks, mouse and touch movements.
+ * The condition is pretty simple - if there were no interactions for 300 msec there is a huge chance that we are in idle.
+ */
+
+var applyPolyfill = function () {
+    //By default we may assume that user stopped interaction if we are idle for 300 miliseconds
+    var IDLE_ENOUGH_DELAY = 300;
+    var timeoutId = null;
+    var callbacks = [];
+    var lastInteractionTime = Date.now();
+    var deadline = {
+        timeRemaining: IDLE_ENOUGH_DELAY
+    };
+
+    var isFree = function () {
+        return timeoutId === null;
+    }
+
+    var onContinousInteractionStarts = function (interactionName) {
+        deadline.timeRemaining = 0;
+        lastInteractionTime = Date.now();
+
+        if (!timeoutId) {
+            timeoutId = setTimeout(timeoutCompleted, IDLE_ENOUGH_DELAY);
+        }
+    }
+
+    var onContinousInteractionEnds = function (interactionName) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+
+        for (var i = 0; i < callbacks.length; i++) {
+            executeCallback(callbacks[i])
+        }
+    }
+
+    //Consider categorizing last interaction timestamp in order to add cancelling events like touchend, touchleave, touchcancel, mouseup, mouseout, mouseleave
+    document.addEventListener('keydown', onContinousInteractionStarts.bind(this, 'keydown'));
+    document.addEventListener('mousedown', onContinousInteractionStarts.bind(this, 'mousedown'));
+    document.addEventListener('touchstart', onContinousInteractionStarts.bind(this, 'touchstart'));
+    document.addEventListener('touchmove', onContinousInteractionStarts.bind(this, 'touchmove'));
+    document.addEventListener('mousemove', onContinousInteractionStarts.bind(this, 'mousemove'));
+    document.addEventListener('scroll', onContinousInteractionStarts.bind(this, 'scroll'), true);
+
+
+    var timeoutCompleted = function () {
+        var expectedEndTime = lastInteractionTime + IDLE_ENOUGH_DELAY;
+        var delta = expectedEndTime - Date.now();
+
+        if (delta > 0) {
+            timeoutId = setTimeout(timeoutCompleted, delta);
+        } else {
+            onContinousInteractionEnds();
+        }
+    }
+
+    var createCallbackObject = function (callback, timeout) {
+        var callbackObject = {
+            callback: callback,
+            timeoutId: null
+        };
+
+        callbackObject.timeoutId = timeout !== null ? setTimeout(executeCallback.bind(this, callbackObject), timeout) : null;
+
+        return callbackObject;
+    }
+
+    var addCallback = function (callbackObject, timeout) {
+        callbacks.push(callbackObject);
+    }
+
+    var executeCallback = function (callbackObject) {
+        var callbackIndex = callbacks.indexOf(callbackObject);
+
+        if (callbackIndex !== -1) {
+            callbacks.splice(callbacks.indexOf(callbackObject), 1);
+        }
+
+        callbackObject.callback(deadline);
+
+        if (callbackObject.timeoutId) {
+            clearTimeout(callbackObject.timeoutId);
+            callbackObject.timeoutId = null;
+        }
+    }
+
+    return function (callback, options) {
+        var timeout = (options && options.timeout) || null;
+        var callbackObject = createCallbackObject(callback, timeout);
+
+        if (isFree()) {
+            executeCallback(callbackObject);
+        } else {
+            addCallback(callbackObject);
+        }
+    };
+};
+
+if (!window.requestIdleCallback) {
+    window.ricActivated = true;
+    window.requestIdleCallback = applyPolyfill();
+}
+
+window.requestUserIdle = window.ricActivated && window.requestIdleCallback || applyPolyfill();
+},{}],79:[function(require,module,exports){
 (function (global){
 module.exports =
   global.performance &&
@@ -15551,7 +15662,7 @@ module.exports =
   }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],79:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 'use strict'
 
 var parseUnit = require('parse-unit')
@@ -15612,7 +15723,7 @@ function toPX(str, element) {
   }
   return 1
 }
-},{"parse-unit":74}],80:[function(require,module,exports){
+},{"parse-unit":74}],81:[function(require,module,exports){
 'use strict'
 
 module.exports = createTurntableController
@@ -16185,7 +16296,40 @@ function createTurntableController(options) {
     theta,
     phi)
 }
-},{"filtered-vector":23,"gl-mat4/invert":34,"gl-mat4/rotate":40,"gl-vec3/cross":51,"gl-vec3/dot":52,"gl-vec3/normalize":55}],81:[function(require,module,exports){
+},{"filtered-vector":23,"gl-mat4/invert":34,"gl-mat4/rotate":40,"gl-vec3/cross":51,"gl-vec3/dot":52,"gl-vec3/normalize":55}],82:[function(require,module,exports){
+const isIOS = !!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform)
+
+module.exports = function showBrowserWarning() {
+  return new Promise((resolve, reject) => {
+    if (isIOS) {
+      document.querySelector('.browser-warning.ios').classList.remove('hidden')
+      reject(new Error('Unable to run on this browser or device'))
+      return
+    }
+
+    const isChrome = !!window.chrome
+    if (isChrome) {
+      removeWarningEls()
+      resolve()
+      return
+    }
+
+    const nonChromeWarningEl = document.querySelector('.browser-warning.non-chrome')
+    nonChromeWarningEl.classList.remove('hidden')
+    nonChromeWarningEl.querySelector('.ok').addEventListener('click', () => {
+      nonChromeWarningEl.classList.add('hidden')
+      setTimeout(() => {
+        removeWarningEls()
+        resolve()
+      }, 500)
+    })
+  })
+  function removeWarningEls() {
+    Array.from(document.querySelectorAll('.browser-warning')).forEach(el => el.parentElement.removeChild(el))
+  }
+}
+
+},{}],83:[function(require,module,exports){
 module.exports = {
   'one-or-two-family': {
     color: [207, 76, 115],
@@ -16250,7 +16394,7 @@ module.exports = {
 // [109, 65, 173] - hotel
 // [207, 76, 115] - 1-2 family
 
-},{}],82:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 const shuffle = require('array-shuffle')
 
 module.exports = {
@@ -16285,7 +16429,7 @@ module.exports = {
   ])
 }
 
-},{"array-shuffle":3}],83:[function(require,module,exports){
+},{"array-shuffle":3}],85:[function(require,module,exports){
 module.exports = function createBuffers(regl, settings) {
   const get32BitSlotCount = (vertexCount) => (
     vertexCount * 3 + // positions
@@ -16362,7 +16506,7 @@ module.exports = function createBuffers(regl, settings) {
   }
 }
 
-},{}],84:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 const buildingClasses = require('./building-classes')
 
 module.exports = function createButtons (container, settings) {
@@ -16446,7 +16590,7 @@ module.exports = function createButtons (container, settings) {
   return renderButtons
 }
 
-},{"./building-classes":81}],85:[function(require,module,exports){
+},{"./building-classes":83}],87:[function(require,module,exports){
 const mat4 = require('gl-mat4')
 const intersect = require('ray-plane-intersection')
 const pickRay = require('camera-picking-ray')
@@ -16657,7 +16801,7 @@ function createInterpolator(speed, value) {
   }
 }
 
-},{"3d-view-controls":1,"camera-picking-ray":5,"gl-mat4":33,"ray-plane-intersection":76}],86:[function(require,module,exports){
+},{"3d-view-controls":1,"camera-picking-ray":5,"gl-mat4":33,"ray-plane-intersection":76}],88:[function(require,module,exports){
 const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
 const { interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
@@ -16922,7 +17066,8 @@ function distance(a, b) {
   return Math.sqrt(x * x + y * y)
 }
 
-},{"./building-classes":81,"d3-color":12,"d3-scale":16,"d3-scale-chromatic":15,"glslify":59}],87:[function(require,module,exports){
+},{"./building-classes":83,"d3-color":12,"d3-scale":16,"d3-scale-chromatic":15,"glslify":59}],89:[function(require,module,exports){
+require('ric')
 const createRegl = require('regl')
 const fit = require('canvas-fit')
 const mat4 = require('gl-mat4')
@@ -16936,162 +17081,160 @@ const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
 const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
+const showBrowserWarning = require('./browser-warning')
 
-// TODO: figure this out!
-const isMobile = false
+const isDev = document.location.origin.includes('tbaldw.in') !== 0
 
-if (isMobile) {
-  document.querySelector('.browser-warning').classList.remove('hidden')
-  throw new Error('Unable to run on this browser or device')
-} else {
-  document.querySelector('.browser-warning').remove()
-}
+showBrowserWarning().then(function start() {
+  const canvas = document.querySelector('.viz')
+  window.addEventListener('resize', fit(canvas), false)
+  const regl = createRegl({
+    extensions: ['oes_standard_derivatives'],
+    canvas: canvas
+  })
 
-const canvas = document.querySelector('.viz')
-window.addEventListener('resize', fit(canvas), false)
-const regl = createRegl({
-  extensions: ['oes_standard_derivatives'],
-  canvas: canvas
-})
+  const getProjection = () => mat4.perspective(
+    [],
+    Math.PI / 4,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    1000
+  )
 
-const getProjection = () => mat4.perspective(
-  [],
-  Math.PI / 4,
-  window.innerWidth / window.innerHeight,
-  0.01,
-  1000
-)
+  const camera = createRoamingCamera(
+    canvas,
+    cameraPositions.onStart.center,
+    cameraPositions.onStart.eye,
+    getProjection,
+    cameraPositions.positions
+  )
 
-const camera = createRoamingCamera(
-  canvas,
-  cameraPositions.onStart.center,
-  cameraPositions.onStart.eye,
-  getProjection,
-  cameraPositions.positions
-)
+  const settings = {
+    isDev: isDev,
+    objectStorageURL: 'https://tbaldwin.nyc3.digitaloceanspaces.com/',
+    // hardcoding so we can set up stateTransitioner early and show loading progress
+    BUILDINGS_COUNT: 45707,
+    // hardcoding so we can set up stateIndexes array early
+    POSITIONS_LENGTH: 32895792,
+    wireframeThickness: 0.003,
+    wireframeDistanceThreshold: 9,
+    opacity: 0.65,
+    animationSpeed: 0.1,
+    animationSpread: 3000,
+    loadingAnimationSpeed: 0.005,
+    colorCodeField: 'height',
+    primitive: 'triangles',
+    showFewerBuildings: false
+  }
 
-const settings = {
-  // hardcoding so we can set up stateTransitioner early and show loading progress
-  BUILDINGS_COUNT: 45707,
-  // hardcoding so we can set up stateIndexes array early
-  POSITIONS_LENGTH: 32895792,
-  wireframeThickness: 0.003,
-  wireframeDistanceThreshold: 9,
-  opacity: 0.65,
-  animationSpeed: 0.1,
-  animationSpread: 3000,
-  loadingAnimationSpeed: 0.005,
-  colorCodeField: 'height',
-  primitive: 'triangles',
-  showFewerBuildings: false
-}
+  const gui = new GUI()
+  gui.closed = true
+  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
+  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
+  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
+  gui.add(settings, 'opacity', 0, 1).step(0.01)
+  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
+  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
 
-const gui = new GUI()
-gui.closed = true
-gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
-gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
-gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
-gui.add(settings, 'opacity', 0, 1).step(0.01)
-gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
-gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
+  const renderButtons = createButtons(document.querySelector('.button-group'), settings)
+  renderButtons(settings)
 
-const renderButtons = createButtons(document.querySelector('.button-group'), settings)
-renderButtons(settings)
+  const buffers = createBuffers(regl, settings)
 
-const buffers = createBuffers(regl, settings)
+  let globalStateRender, stateTransitioner, renderBuildings
+  let loaded = false
 
-let globalStateRender, stateTransitioner, renderBuildings
-let loaded = false
+  const loader = createLoaderRenderer(document.querySelector('.loader'))
 
-const loader = createLoaderRenderer(document.querySelector('.loader'))
-
-const renderFxaa = createFxaaRenderer(regl)
-loadData(regl, settings, {
-  onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
-    loader.render(1)
-    buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
-    setTimeout(() => {
-      loader.remove()
-      camera.updateSpeed(0.005, 0.02)
-      camera.moveTo(cameraPositions.onFinishLoad)
+  const renderFxaa = createFxaaRenderer(regl)
+  loadData(regl, settings, {
+    onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
+      loader.render(1)
+      buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
       setTimeout(() => {
-        document.body.classList.remove('for-intro')
-        loaded = true
-        window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
-        setTimeout(camera.startRoaming, 5000)
-      }, 1500)
-    }, 200)
-  },
-  onStart(getLatest) {
-    stateTransitioner = createStateTransitioner(regl, settings)
-    const attrs = buffers.getAttributes()
-    renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
+        loader.remove()
+        camera.updateSpeed(0.005, 0.02)
+        camera.moveTo(cameraPositions.onFinishLoad)
+        setTimeout(() => {
+          document.body.classList.remove('for-intro')
+          loaded = true
+          window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
+          setTimeout(camera.startRoaming, 5000)
+        }, 1500)
+      }, 200)
+    },
+    onStart(getLatest) {
+      stateTransitioner = createStateTransitioner(regl, settings)
+      const attrs = buffers.getAttributes()
+      renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
 
-    globalStateRender = regl({
-      uniforms: {
-        projection: getProjection,
-        view: () => camera.getMatrix(),
-        buildingState: stateTransitioner.getStateTexture,
-        isLoading: () => !loaded
-      }
-    })
+      globalStateRender = regl({
+        uniforms: {
+          projection: getProjection,
+          view: () => camera.getMatrix(),
+          buildingState: stateTransitioner.getStateTexture,
+          isLoading: () => !loaded
+        }
+      })
 
-    setTimeout(() => {
-      camera.updateSpeed(0.0015, 0.0015)
-      camera.moveTo(cameraPositions.onStartLoad)
-    }, 100)
+      setTimeout(() => {
+        camera.updateSpeed(0.0015, 0.0015)
+        camera.moveTo(cameraPositions.onStartLoad)
+      }, 100)
 
-    let curPositionsLoaded = 0
+      let curPositionsLoaded = 0
 
-    regl.frame((context) => {
-      camera.tick()
+      regl.frame((context) => {
+        camera.tick()
 
-      context.isLoading = !loaded
+        context.isLoading = !loaded
 
-      stateTransitioner.tick(context, settings)
+        stateTransitioner.tick(context, settings)
 
-      renderAutopilotButton()
+        renderAutopilotButton()
 
-      if (!loaded && context.tick % 5 === 0) {
-        const latest = getLatest()
-        curPositionsLoaded = latest.positions.length / 3
-        stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-        buffers.update(latest, stateTransitioner.getStateIndexes())
-        loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
-      }
+        if (!loaded && context.tick % 5 === 0) {
+          const latest = getLatest()
+          curPositionsLoaded = latest.positions.length / 3
+          stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
+          buffers.update(latest, stateTransitioner.getStateIndexes())
+          loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
+        }
 
-      // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
-      const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
+        // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
+        const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
 
-      renderFxaa(context, () => {
-        regl.clear({
-          color: [1, 1, 1, 1],
-          depth: 1
-        })
-        globalStateRender(() => {
-          renderBuildings({
-            primitive: settings.primitive,
-            count: (curPositionsLoaded * countMultiplier) | 0
+        renderFxaa(context, () => {
+          regl.clear({
+            color: [1, 1, 1, 1],
+            depth: 1
+          })
+          globalStateRender(() => {
+            renderBuildings({
+              primitive: settings.primitive,
+              count: (curPositionsLoaded * countMultiplier) | 0
+            })
           })
         })
       })
-    })
+    }
+  })
+
+  const autopilotButton = document.querySelector('.autopilot-button')
+  autopilotButton.addEventListener('click', () => {
+    camera.startRoaming()
+  })
+
+  function renderAutopilotButton() {
+    if (camera.isRoaming()) {
+      autopilotButton.classList.add('hidden')
+    } else {
+      autopilotButton.classList.remove('hidden')
+    }
   }
 })
 
-const autopilotButton = document.querySelector('.autopilot-button')
-autopilotButton.addEventListener('click', () => {
-  camera.startRoaming()
-})
-function renderAutopilotButton() {
-  if (camera.isRoaming()) {
-    autopilotButton.classList.add('hidden')
-  } else {
-    autopilotButton.classList.remove('hidden')
-  }
-}
-
-},{"./camera-positions":82,"./create-buffers":83,"./create-buttons":84,"./create-roaming-camera":85,"./create-state-transitioner":86,"./load-data":88,"./render-buildings":90,"./render-fxaa":91,"./render-loader":92,"canvas-fit":8,"dat-gui":19,"gl-mat4":33,"regl":77}],88:[function(require,module,exports){
+},{"./browser-warning":82,"./camera-positions":84,"./create-buffers":85,"./create-buttons":86,"./create-roaming-camera":87,"./create-state-transitioner":88,"./load-data":90,"./render-buildings":92,"./render-fxaa":93,"./render-loader":94,"canvas-fit":8,"dat-gui":19,"gl-mat4":33,"regl":77,"ric":78}],90:[function(require,module,exports){
 const localForage = require('localforage')
 const createDataMunger = require('./munge-data')
 
@@ -17127,11 +17270,11 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
   }
 
   function startFetch() {
-    const metadataFetch = window.fetch('models/manhattan.pluto.filtered.csv')
+    const metadataFetch = window.fetch(prefixURL('models/manhattan.pluto.filtered.csv'))
       .then(res => res.text())
       .then(parseMetadataCSV)
 
-    const binToBBLMapFetch = window.fetch('models/bin-to-bbl.csv')
+    const binToBBLMapFetch = window.fetch(prefixURL('models/bin-to-bbl.csv'))
       .then(res => res.text())
       .then(parseBinToBBLMapCSV)
 
@@ -17150,13 +17293,17 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
 
     Promise.all([metadataFetch, binToBBLMapFetch])
       .then(([metadata, binToBBLMap]) => {
-        const geometryFetch = window.fetch('models/manhattan.indexed.building.triangles.binary')
+        const geometryFetch = window.fetch(prefixURL('models/manhattan.indexed.building.triangles.binary'))
         return Promise.all([
           geometryFetch,
           Promise.resolve(metadata),
           Promise.resolve(binToBBLMap)
         ])
       }).then(mungeData)
+  }
+
+  function prefixURL(url) {
+    return settings.isDev ? url : settings.objectStorageURL
   }
 }
 
@@ -17207,7 +17354,7 @@ function splitOnCSVComma(line) {
   return parts
 }
 
-},{"./munge-data":89,"localforage":62}],89:[function(require,module,exports){
+},{"./munge-data":91,"localforage":62}],91:[function(require,module,exports){
 // const getNormal = require('triangle-normal')
 
 const BUILDING_DELIMITER = [255, 255, 255, 255]
@@ -17500,7 +17647,7 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
   }
 }
 
-},{}],90:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 const glsl = require('glslify')
 
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
@@ -17547,7 +17694,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
   }
 }
 
-},{"glslify":59}],91:[function(require,module,exports){
+},{"glslify":59}],93:[function(require,module,exports){
 const glsl = require('glslify')
 
 module.exports = function createFxaaRenderer(regl) {
@@ -17590,7 +17737,7 @@ module.exports = function createFxaaRenderer(regl) {
   }
 }
 
-},{"glslify":59}],92:[function(require,module,exports){
+},{"glslify":59}],94:[function(require,module,exports){
 module.exports = function createLoaderRenderer(element) {
   const loadedEl = element.querySelector('.loaded')
   let lowerBound = 0.05
@@ -17629,4 +17776,4 @@ module.exports = function createLoaderRenderer(element) {
   }
 }
 
-},{}]},{},[87]);
+},{}]},{},[89]);

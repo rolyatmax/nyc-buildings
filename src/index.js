@@ -14,7 +14,7 @@ const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
 const showBrowserWarning = require('./browser-warning')
 
-const isDev = document.location.origin.indexOf('https://tbaldw.in') !== 0
+const isDev = document.location.origin.includes('tbaldw.in') !== 0
 
 showBrowserWarning().then(function start() {
   const canvas = document.querySelector('.viz')
