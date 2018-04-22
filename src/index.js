@@ -9,12 +9,23 @@ const createFxaaRenderer = require('./render-fxaa')
 const createBuildingsRenderer = require('./render-buildings')
 const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
+const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
 
-const canvas = document.body.appendChild(document.querySelector('.viz'))
+// TODO: figure this out!
+const isMobile = false
+
+if (isMobile) {
+  document.querySelector('.browser-warning').classList.remove('hidden')
+  throw new Error('Unable to run on this browser or device')
+} else {
+  document.querySelector('.browser-warning').remove()
+}
+
+const canvas = document.querySelector('.viz')
 window.addEventListener('resize', fit(canvas), false)
 const regl = createRegl({
-  extensions: ['oes_standard_derivatives'], // , 'oes_texture_float'],
+  extensions: ['oes_standard_derivatives'],
   canvas: canvas
 })
 
@@ -66,48 +77,12 @@ gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
 gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
 gui.add(settings, 'opacity', 0, 1).step(0.01)
 gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
-gui.add({ roam: camera.startRoaming }, 'roam').name('Next Camera Position')
+gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
 
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
 renderButtons(settings)
 
-const get32BitSlotCount = (vertexCount) => (
-  vertexCount * 3 + // positions
-  vertexCount + // randoms
-  vertexCount * 2 + // stateIndexes
-  vertexCount * 3 // barys
-)
-
-const attributesBuffer = regl.buffer({
-  usage: 'dynamic',
-  type: 'float',
-  length: get32BitSlotCount(settings.POSITIONS_LENGTH / 3) * 4
-})
-
-const byteStride = get32BitSlotCount(1) * 4
-const positionsBuffer = {
-  buffer: attributesBuffer,
-  offset: 0,
-  stride: byteStride
-}
-
-const randomsBuffer = {
-  buffer: attributesBuffer,
-  offset: 3 * 4,
-  stride: byteStride
-}
-
-const stateIndexesBuffer = {
-  buffer: attributesBuffer,
-  offset: 4 * 4,
-  stride: byteStride
-}
-
-const barysBuffer = {
-  buffer: attributesBuffer,
-  offset: 6 * 4,
-  stride: byteStride
-}
+const buffers = createBuffers(regl, settings)
 
 let globalStateRender, stateTransitioner, renderBuildings
 let loaded = false
@@ -118,7 +93,7 @@ const renderFxaa = createFxaaRenderer(regl)
 loadData(regl, settings, {
   onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
     loader.render(1)
-    updateLoadingState({ positions, barys, randoms, buildings })
+    buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
     setTimeout(() => {
       loader.remove()
       camera.updateSpeed(0.005, 0.02)
@@ -133,7 +108,8 @@ loadData(regl, settings, {
   },
   onStart(getLatest) {
     stateTransitioner = createStateTransitioner(regl, settings)
-    renderBuildings = createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings)
+    const attrs = buffers.getAttributes()
+    renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
 
     globalStateRender = regl({
       uniforms: {
@@ -164,7 +140,7 @@ loadData(regl, settings, {
         const latest = getLatest()
         curPositionsLoaded = latest.positions.length / 3
         stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-        updateLoadingState(latest)
+        buffers.update(latest, stateTransitioner.getStateIndexes())
         loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
       }
 
@@ -197,27 +173,4 @@ function renderAutopilotButton() {
   } else {
     autopilotButton.classList.remove('hidden')
   }
-}
-
-let lastI = 0
-function updateLoadingState({ positions, barys, randoms, buildings }) {
-  const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
-  const stride = get32BitSlotCount(1)
-  const newData = new Float32Array((positions.length / 3 - lastI) * stride)
-  const subDataOffset = lastI * stride * 4
-  let k = 0
-  for (let i = lastI; i < positions.length / 3; i++) {
-    newData[k++] = positions[i * 3 + 0]
-    newData[k++] = positions[i * 3 + 1]
-    newData[k++] = positions[i * 3 + 2]
-    newData[k++] = randoms[i]
-    const stateIdx = buildingIdxToStateIndexes[buildings[i]]
-    newData[k++] = stateIdx[0]
-    newData[k++] = stateIdx[1]
-    newData[k++] = barys[i * 3 + 0]
-    newData[k++] = barys[i * 3 + 1]
-    newData[k++] = barys[i * 3 + 2]
-    lastI = i
-  }
-  attributesBuffer.subdata(newData, subDataOffset)
 }
