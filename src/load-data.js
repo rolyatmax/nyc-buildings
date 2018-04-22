@@ -19,15 +19,23 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
 
   function tryLoadingFromCache() {
     if (document.location.hash === '#nocache') {
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'skip')
       return Promise.reject(new Error('skipping cached data'))
     }
     const keys = ['positions', 'barys', 'buildings', 'randoms', 'buildingIdxToMetadataList', 'DATA_VERSION']
     return Promise.all(keys.map(k => localForage.getItem(k)))
       .then((results) => {
         const emptyResults = results.filter(v => !v || !v.length)
-        if (emptyResults.length) throw new Error('data not found in cache')
+        if (emptyResults.length) {
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'miss')
+          throw new Error('data not found in cache')
+        }
         const [positions, barys, buildings, randoms, buildingIdxToMetadataList, DATA_VERSION] = results
-        if (window.DATA_VERSION !== DATA_VERSION) throw new Error('expired version of data found in cache')
+        if (window.DATA_VERSION !== DATA_VERSION) {
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'expired')
+          throw new Error('expired version of data found in cache')
+        }
+        if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'hit')
         return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
       })
   }

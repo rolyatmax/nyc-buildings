@@ -55,14 +55,18 @@ showBrowserWarning().then(function start() {
     showFewerBuildings: false
   }
 
+  const createSettingEvent = (name) => () => { if (!window.IS_DEV) window.ga('send', 'event', 'Settings', 'click', name) }
+
   const gui = new GUI()
   gui.closed = true
-  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
-  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
-  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
-  gui.add(settings, 'opacity', 0, 1).step(0.01)
-  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
-  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
+  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001).onFinishChange(createSettingEvent('wireframeThickness'))
+  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1).onFinishChange(createSettingEvent('wireframeDistanceThreshold'))
+  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points']).onFinishChange(createSettingEvent('primitive'))
+  gui.add(settings, 'opacity', 0, 1).step(0.01).onFinishChange(createSettingEvent('opacity'))
+  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings').onFinishChange(createSettingEvent('showFewerBuildings'))
+  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera').onFinishChange(createSettingEvent('moveCamera'))
+
+  gui.domElement.querySelector('.close-button').addEventListener('click', createSettingEvent('open'))
 
   const renderButtons = createButtons(document.querySelector('.button-group'), settings)
   renderButtons(settings)
@@ -88,6 +92,7 @@ showBrowserWarning().then(function start() {
           loaded = true
           window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
           setTimeout(camera.startRoaming, 5000)
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'completed')
         }, 1500)
       }, 200)
     },
@@ -151,6 +156,7 @@ showBrowserWarning().then(function start() {
   const autopilotButton = document.querySelector('.autopilot-button')
   autopilotButton.addEventListener('click', () => {
     camera.startRoaming()
+    if (!window.IS_DEV) window.ga('send', 'event', 'Autopilot Button', 'click')
   })
 
   function renderAutopilotButton() {
@@ -160,4 +166,7 @@ showBrowserWarning().then(function start() {
       autopilotButton.classList.remove('hidden')
     }
   }
+
+  document.querySelector('a.github-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'github') })
+  document.querySelector('a.twitter-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'twitter') })
 })

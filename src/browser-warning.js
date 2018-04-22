@@ -4,6 +4,7 @@ module.exports = function showBrowserWarning() {
   return new Promise((resolve, reject) => {
     if (isIOS) {
       document.querySelector('.browser-warning.ios').classList.remove('hidden')
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'ios')
       reject(new Error('Unable to run on this browser or device'))
       return
     }
@@ -15,10 +16,13 @@ module.exports = function showBrowserWarning() {
       return
     }
 
+    if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'non-chrome')
+
     const nonChromeWarningEl = document.querySelector('.browser-warning.non-chrome')
     nonChromeWarningEl.classList.remove('hidden')
     nonChromeWarningEl.querySelector('.ok').addEventListener('click', () => {
       nonChromeWarningEl.classList.add('hidden')
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'proceed')
       setTimeout(() => {
         removeWarningEls()
         resolve()

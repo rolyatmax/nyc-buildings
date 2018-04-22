@@ -16303,6 +16303,7 @@ module.exports = function showBrowserWarning() {
   return new Promise((resolve, reject) => {
     if (isIOS) {
       document.querySelector('.browser-warning.ios').classList.remove('hidden')
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'ios')
       reject(new Error('Unable to run on this browser or device'))
       return
     }
@@ -16314,10 +16315,13 @@ module.exports = function showBrowserWarning() {
       return
     }
 
+    if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'non-chrome')
+
     const nonChromeWarningEl = document.querySelector('.browser-warning.non-chrome')
     nonChromeWarningEl.classList.remove('hidden')
     nonChromeWarningEl.querySelector('.ok').addEventListener('click', () => {
       nonChromeWarningEl.classList.add('hidden')
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'browser-warning', 'proceed')
       setTimeout(() => {
         removeWarningEls()
         resolve()
@@ -16520,7 +16524,10 @@ module.exports = function createButtons (container, settings) {
   buttons.forEach(({ name, label, el }) => {
     el.innerText = label
     container.appendChild(el)
-    el.addEventListener('click', () => toggleFilter(name))
+    el.addEventListener('click', () => {
+      if (!window.IS_DEV) window.ga('send', 'event', 'Filter', 'select', name)
+      toggleFilter(name)
+    })
   })
 
   const { width: buttonWidth } = buttons[0].el.getBoundingClientRect()
@@ -16562,6 +16569,7 @@ module.exports = function createButtons (container, settings) {
       }
       li.addEventListener('click', () => {
         buildingClasses[name].active = !buildingClasses[name].active
+        if (!window.IS_DEV) window.ga('send', 'event', 'Filter-BuildingClass', 'select', name)
         renderBuildingClassColors()
       })
     })
@@ -16602,7 +16610,7 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   let isRoaming = true
   let timeout
 
-  canvas.addEventListener('mousedown', stopRoaming)
+  canvas.addEventListener('mousedown', onMouseDown)
   canvas.addEventListener('dblclick', onDblClick)
 
   const camera = createCamera(canvas, {
@@ -16634,7 +16642,13 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     [0, 0, 999]
   )
 
+  function onMouseDown () {
+    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'mousedown')
+    stopRoaming()
+  }
+
   function onDblClick (e) {
+    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'double-click')
     const [fX, fY] = getIntersection(
       [e.clientX, e.clientY],
       // prob not the best idea since elsewhere we are using `viewportWidth`
@@ -17119,14 +17133,18 @@ showBrowserWarning().then(function start() {
     showFewerBuildings: false
   }
 
+  const createSettingEvent = (name) => () => { if (!window.IS_DEV) window.ga('send', 'event', 'Settings', 'click', name) }
+
   const gui = new GUI()
   gui.closed = true
-  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
-  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
-  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
-  gui.add(settings, 'opacity', 0, 1).step(0.01)
-  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
-  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
+  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001).onFinishChange(createSettingEvent('wireframeThickness'))
+  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1).onFinishChange(createSettingEvent('wireframeDistanceThreshold'))
+  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points']).onFinishChange(createSettingEvent('primitive'))
+  gui.add(settings, 'opacity', 0, 1).step(0.01).onFinishChange(createSettingEvent('opacity'))
+  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings').onFinishChange(createSettingEvent('showFewerBuildings'))
+  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera').onFinishChange(createSettingEvent('moveCamera'))
+
+  gui.domElement.querySelector('.close-button').addEventListener('click', createSettingEvent('open'))
 
   const renderButtons = createButtons(document.querySelector('.button-group'), settings)
   renderButtons(settings)
@@ -17152,6 +17170,7 @@ showBrowserWarning().then(function start() {
           loaded = true
           window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
           setTimeout(camera.startRoaming, 5000)
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'completed')
         }, 1500)
       }, 200)
     },
@@ -17215,6 +17234,7 @@ showBrowserWarning().then(function start() {
   const autopilotButton = document.querySelector('.autopilot-button')
   autopilotButton.addEventListener('click', () => {
     camera.startRoaming()
+    if (!window.IS_DEV) window.ga('send', 'event', 'Autopilot Button', 'click')
   })
 
   function renderAutopilotButton() {
@@ -17224,6 +17244,9 @@ showBrowserWarning().then(function start() {
       autopilotButton.classList.remove('hidden')
     }
   }
+
+  document.querySelector('a.github-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'github') })
+  document.querySelector('a.twitter-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'twitter') })
 })
 
 },{"./browser-warning":82,"./camera-positions":84,"./create-buffers":85,"./create-buttons":86,"./create-roaming-camera":87,"./create-state-transitioner":88,"./load-data":90,"./render-buildings":92,"./render-fxaa":93,"./render-loader":94,"canvas-fit":8,"dat-gui":19,"gl-mat4":33,"regl":77,"ric":78}],90:[function(require,module,exports){
@@ -17248,15 +17271,23 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
 
   function tryLoadingFromCache() {
     if (document.location.hash === '#nocache') {
+      if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'skip')
       return Promise.reject(new Error('skipping cached data'))
     }
     const keys = ['positions', 'barys', 'buildings', 'randoms', 'buildingIdxToMetadataList', 'DATA_VERSION']
     return Promise.all(keys.map(k => localForage.getItem(k)))
       .then((results) => {
         const emptyResults = results.filter(v => !v || !v.length)
-        if (emptyResults.length) throw new Error('data not found in cache')
+        if (emptyResults.length) {
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'miss')
+          throw new Error('data not found in cache')
+        }
         const [positions, barys, buildings, randoms, buildingIdxToMetadataList, DATA_VERSION] = results
-        if (window.DATA_VERSION !== DATA_VERSION) throw new Error('expired version of data found in cache')
+        if (window.DATA_VERSION !== DATA_VERSION) {
+          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'expired')
+          throw new Error('expired version of data found in cache')
+        }
+        if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'hit')
         return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
       })
   }

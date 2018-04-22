@@ -9,7 +9,7 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   let isRoaming = true
   let timeout
 
-  canvas.addEventListener('mousedown', stopRoaming)
+  canvas.addEventListener('mousedown', onMouseDown)
   canvas.addEventListener('dblclick', onDblClick)
 
   const camera = createCamera(canvas, {
@@ -41,7 +41,13 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     [0, 0, 999]
   )
 
+  function onMouseDown () {
+    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'mousedown')
+    stopRoaming()
+  }
+
   function onDblClick (e) {
+    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'double-click')
     const [fX, fY] = getIntersection(
       [e.clientX, e.clientY],
       // prob not the best idea since elsewhere we are using `viewportWidth`

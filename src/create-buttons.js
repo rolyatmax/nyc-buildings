@@ -11,7 +11,10 @@ module.exports = function createButtons (container, settings) {
   buttons.forEach(({ name, label, el }) => {
     el.innerText = label
     container.appendChild(el)
-    el.addEventListener('click', () => toggleFilter(name))
+    el.addEventListener('click', () => {
+      if (!window.IS_DEV) window.ga('send', 'event', 'Filter', 'select', name)
+      toggleFilter(name)
+    })
   })
 
   const { width: buttonWidth } = buttons[0].el.getBoundingClientRect()
@@ -53,6 +56,7 @@ module.exports = function createButtons (container, settings) {
       }
       li.addEventListener('click', () => {
         buildingClasses[name].active = !buildingClasses[name].active
+        if (!window.IS_DEV) window.ga('send', 'event', 'Filter-BuildingClass', 'select', name)
         renderBuildingClassColors()
       })
     })
