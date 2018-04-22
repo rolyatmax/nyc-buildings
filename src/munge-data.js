@@ -19,10 +19,8 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
     let isFirstChunk = true
     let isLastChunk = false
     if (meshRes.body && meshRes.body.getReader) {
-      let k = 0
       const reader = meshRes.body.getReader()
       reader.read().then(function processStream({ done, value }) {
-        k += 1
         if (isFirstChunk) {
           processChunk(value)
           onStart(getLatest)
@@ -33,7 +31,6 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
             processChunk(value)
             if (done) {
               window.requestIdleCallback(() => onDone(getLatest()))
-              console.log(k, 'chunks')
             }
           })
         }

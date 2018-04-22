@@ -4,8 +4,9 @@ const pickRay = require('camera-picking-ray')
 // const { createSpring } = require('spring-animator')
 const createCamera = require('3d-view-controls')
 
-module.exports = function createRoamingCamera(canvas, center, eye, getProjection) {
+module.exports = function createRoamingCamera(canvas, center, eye, getProjection, roamingCameraPositions) {
   let isMoving = false
+  let isRoaming = true
   let timeout
 
   canvas.addEventListener('mousedown', stopRoaming)
@@ -71,10 +72,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     cameraRoamLoop()
   }
 
+  let curCameraPosition = 0
   function cameraRoamLoop () {
     clearTimeout(timeout)
-    timeout = setTimeout(cameraRoamLoop, 10000)
-    setRandomCameraPosition()
+    timeout = setTimeout(cameraRoamLoop, 15000)
+    if (Math.random() < 0.5) {
+      curCameraPosition = (curCameraPosition + 1) % roamingCameraPositions.length
+      moveTo(roamingCameraPositions[curCameraPosition])
+    } else {
+      setRandomCameraPosition()
+    }
   }
 
   function moveTo ({ center, eye }) {
@@ -87,6 +94,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     cameraX.updateValue(eye[0])
     cameraY.updateValue(eye[1])
     cameraZ.updateValue(eye[2])
+  }
+
+  function updateSpeed (cameraSpeed, focusSpeed) {
+    cameraX.updateSpeed(cameraSpeed)
+    cameraY.updateSpeed(cameraSpeed)
+    cameraZ.updateSpeed(cameraSpeed)
+
+    focusX.updateSpeed(focusSpeed)
+    focusY.updateSpeed(focusSpeed)
+    focusZ.updateSpeed(focusSpeed)
   }
 
   function tick () {
@@ -111,11 +128,13 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     clearTimeout(timeout)
     timeout = null
     isMoving = false
+    isRoaming = false
   }
   function startRoaming () {
     setSpringsToCurrentCameraValues()
     cameraRoamLoop()
     isMoving = true
+    isRoaming = true
   }
 
   function setSpringsToCurrentCameraValues () {
@@ -135,7 +154,9 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     getCenter,
     getEye,
     startRoaming,
-    moveTo
+    isRoaming: () => isRoaming,
+    moveTo,
+    updateSpeed
   }
 }
 
@@ -154,6 +175,9 @@ function createInterpolator(speed, value) {
   let curValue = value
   let destValue = value
   return {
+    updateSpeed: (newSpeed) => {
+      speed = newSpeed
+    },
     updateValue: (val, shouldAnimate) => {
       destValue = val
       if (shouldAnimate === false) curValue = val

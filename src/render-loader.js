@@ -12,7 +12,7 @@ module.exports = function createLoaderRenderer(element) {
   setTimeout(function loop() {
     if (curT < 1) setTimeout(loop, 1000)
     if (lastT === curT) {
-      console.log('updating lowerBound!')
+      console.log('updating progress bar lowerBound!')
       lowerBound += Math.random() * 0.02
       lowerBound = Math.min(lowerBound, 0.95)
       render(curT)

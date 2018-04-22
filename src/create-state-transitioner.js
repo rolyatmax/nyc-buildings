@@ -2,7 +2,7 @@ const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
 const { interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
-const buildingClassToHues = require('./building-classes')
+const buildingClasses = require('./building-classes')
 
 module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
@@ -12,9 +12,9 @@ module.exports = function createStateTransitioner (regl, settings) {
   const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
-    initialBuildingState[i * 4] = 1 // r
-    initialBuildingState[i * 4 + 1] = 1 // g
-    initialBuildingState[i * 4 + 2] = 1 // b
+    initialBuildingState[i * 4] = 0.2 // r
+    initialBuildingState[i * 4 + 1] = 0.2 // g
+    initialBuildingState[i * 4 + 2] = 0.2 // b
     initialBuildingState[i * 4 + 3] = 0 // a
   }
 
@@ -73,6 +73,14 @@ module.exports = function createStateTransitioner (regl, settings) {
       uniform bool showBuilt;
       uniform bool showClass;
       uniform bool showHeight;
+
+      uniform bool showOneOrTwoFamily;
+      uniform bool showCondo;
+      uniform bool showCoop;
+      uniform bool showElevator;
+      uniform bool showWalkupAndMixedUse;
+      uniform bool showHotel;
+
       uniform bool isLoading;
 
       varying vec2 buildingStateIndex;
@@ -84,22 +92,38 @@ module.exports = function createStateTransitioner (regl, settings) {
         vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);
         float distFromCenter = firstSlot.a;
 
-        vec4 destColor = vec4(1, 1, 1, 0);
+        vec4 destColor = vec4(0.01, 0.01, 0.01, 0);
         if (isLoading) {
           if (firstSlot.r == 1.0) {
-            destColor = vec4(0.22, 0.22, 0.25, 0.6);
+            destColor = vec4(0.52, 0.52, 0.55, 0.5);
           } else {
             destColor = curColor;
           }
-        } else {
-          if (showBuilt) {
-            destColor = vec4(firstSlot.rgb, 1);
-          }
-          if (showClass) {
-            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb, 1);
-          }
-          if (showHeight) {
-            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);
+          vec4 nextColor = curColor + (destColor - curColor) * animationSpeed;
+          gl_FragColor = nextColor;
+          return;
+        }
+
+        if (showBuilt) {
+          destColor = vec4(firstSlot.rgb, 1);
+        }
+        if (showHeight) {
+          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);
+        }
+        if (showClass) {
+          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0);
+          float buildingClassID = thirdSlot.a * 255.0;
+          if (
+            (buildingClassID == 0.0 && showOneOrTwoFamily) ||
+            (buildingClassID == 1.0 && showCondo) ||
+            (buildingClassID == 2.0 && showCoop) ||
+            (buildingClassID == 3.0 && showElevator) ||
+            (buildingClassID == 4.0 && showWalkupAndMixedUse) ||
+            (buildingClassID == 5.0 && showHotel)
+          ) {
+            destColor = vec4(thirdSlot.rgb, 1);
+          } else {
+            destColor = vec4(0);
           }
         }
 
@@ -120,7 +144,7 @@ module.exports = function createStateTransitioner (regl, settings) {
         // distFromCenter is a float between 0->1
         // transition over 2 seconds
         float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;
-        float rate = (isLoading || time > start) ? 1.0 : 0.0;
+        float rate = (time > start) ? 1.0 : 0.0;
         vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;
 
         gl_FragColor = nextColor;
@@ -148,6 +172,14 @@ module.exports = function createStateTransitioner (regl, settings) {
       showBuilt: regl.prop('showBuilt'),
       showClass: regl.prop('showClass'),
       showHeight: regl.prop('showHeight'),
+
+      showOneOrTwoFamily: () => buildingClasses['one-or-two-family'].active,
+      showCondo: () => buildingClasses['condo'].active,
+      showCoop: () => buildingClasses['co-op'].active,
+      showElevator: () => buildingClasses['elevator'].active,
+      showWalkupAndMixedUse: () => buildingClasses['walkup-and-mixed-use'].active,
+      showHotel: () => buildingClasses['hotel'].active,
+
       isLoading: regl.prop('isLoading')
     },
 
@@ -192,10 +224,14 @@ module.exports = function createStateTransitioner (regl, settings) {
       // buildingMetaDataState[j * 16 + 6] = color[2] * 255
 
       metadataValue = metadata ? metadata['class'] : null
-      color = metadataValue ? fieldToColorMappers['class'](metadataValue) : [0, 0, 0]
+      const buildingClass = getBuildingClass(metadataValue)
+      color = buildingClass ? fieldToColorMappers['class'](buildingClass) : [0, 0, 0]
       buildingMetaDataState[j * 16 + 8] = color[0] * 255
       buildingMetaDataState[j * 16 + 9] = color[1] * 255
       buildingMetaDataState[j * 16 + 10] = color[2] * 255
+
+      const buildingClassID = buildingClassIDs[buildingClass]
+      buildingMetaDataState[j * 16 + 11] = buildingClassID
 
       metadataValue = metadata ? metadata['height'] : null
       color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0, 0, 0]
@@ -263,10 +299,9 @@ module.exports = function createStateTransitioner (regl, settings) {
 }
 
 const fieldToColorMappers = {
-  class(val) {
-    const buildingClass = getBuildingClass(val)
+  class(buildingClass) {
     if (!buildingClass) return [0, 0, 0]
-    const color = buildingClassToHues[buildingClass]
+    const { color } = buildingClasses[buildingClass]
     return color.map(v => v / 255)
   },
   height: (function() {
@@ -289,6 +324,7 @@ const fieldToColorMappers = {
 }
 
 function getBuildingClass(val) {
+  if (!val) return false
   switch (val[0]) {
     case 'A': // one family dwellings
     case 'B': // two family dwellings
@@ -311,6 +347,17 @@ function getBuildingClass(val) {
     default:
       return false
   }
+}
+
+// storing building classes as 8-bit Uints in texture for use in shader
+const buildingClassIDs = {
+  'one-or-two-family': 0,
+  'condo': 1,
+  'co-op': 2,
+  'elevator': 3,
+  'walkup-and-mixed-use': 4,
+  'hotel': 5,
+  'non-residential': 6
 }
 
 function distance(a, b) {

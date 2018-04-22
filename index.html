@@ -121,9 +121,10 @@
     }
 
     .source a {
+      margin: 0 5px;
       color: #777;
       padding-bottom: 8px;
-      border-bottom: 1px solid #fff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0);
       transition: color 200ms linear,
                   padding-bottom 400ms cubic-bezier(0.215, 0.610, 0.355, 1),
                   border-bottom 400ms cubic-bezier(0.215, 0.610, 0.355, 1);
@@ -132,7 +133,7 @@
     .source a:hover {
       color: #333;
       padding-bottom: 2px;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid rgba(51, 51, 51, 1);
     }
 
     .for-intro .title {
@@ -140,10 +141,12 @@
       border: 1px solid rgba(255, 255, 255, 0);
       width: 600px;
       font-size: 33px;
+      pointer-events: none;
     }
 
     .for-intro .links {
       opacity: 0;
+      pointer-events: none;
     }
 
     .for-intro .instructions {
@@ -152,11 +155,13 @@
 
     .for-intro .source {
       opacity: 0;
+      pointer-events: none;
     }
 
     .for-intro .controls-container {
       opacity: 0;
       transform: translateY(-100px);
+      pointer-events: none;
     }
 
     .for-intro .loader {
@@ -166,6 +171,34 @@
 
     .for-intro .loader.hidden {
       opacity: 0;
+    }
+
+    .for-intro .autopilot-button {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .autopilot-button.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .autopilot-button {
+      opacity: 1;
+      transition: all 300ms linear;
+      position: absolute;
+      bottom: 50px;
+      padding: 5px 0;
+      font-size: 12px;
+      text-align: center;
+      color: #999;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .autopilot-button:hover {
+      background-color: #fafafa;
+      color: #666;
     }
 
     .controls-container {
@@ -263,15 +296,48 @@
     }
 
     .key li {
-      margin: 4px;
+      margin: 2px;
+      color: #bbb;
+      transition: color 150ms linear;
+      cursor: pointer;
+    }
+
+    .key li.space-below {
+      margin-bottom: 12px;
+    }
+
+    .key li.disabled {
+      cursor: auto;
+    }
+
+    .key li:hover {
+      color: #777;
+    }
+
+    .key li.active {
+      color: #333;
     }
 
     .key li span {
+      position: relative;
+      top: 2px;
       height: 13px;
       width: 13px;
       margin-right: 8px;
       display: inline-block;
       border-radius: 50%;
+      border: 1px solid #ddd;
+      background-color: #fff;
+      transition: border 150ms linear,
+                  background-color 150ms linear;
+    }
+
+    .key li:hover span {
+      border: 1px solid #999;
+    }
+
+    .key li.active span {
+      border: 1px solid #fff;
     }
 
     .loader {
@@ -312,10 +378,6 @@
 <body class="for-intro">
   <canvas class="viz"></canvas>
   <!-- <div class="intro">
-    <div class="instructions">
-      <div>TURN YOUR SOUND ON</div>
-      <button>READY</button>
-    </div>
     <div class="ios-instructions">
       <h2>Unfortunately, I've had some issues getting this running on iOS. Please
       take a look in a desktop browser. Preferably Chrome. 😬 <br><br> In the
@@ -355,18 +417,22 @@
       <div class="key class">
         <ul>
           <li data-class-type="walkup-and-mixed-use"><span></span> Walk-ups & mixed-use rentals</li>
-          <li data-class-type="elevator"><span></span> Elevator rentals</li>
+          <li data-class-type="elevator" class="space-below"><span></span> Elevator rentals</li>
           <li data-class-type="co-op"><span></span> Co-ops</li>
           <li data-class-type="condo"><span></span> Condos</li>
-          <li data-class-type="one-or-two-family"><span></span> 1-2 Family homes</li>
-          <li data-class-type="hotel"><span></span> Hotels</li>
+          <li data-class-type="one-or-two-family" class="space-below"><span></span> 1-2 Family homes</li>
+          <li data-class-type="hotel" class="space-below"><span></span> Hotels</li>
           <li data-class-type="non-residential"><span></span> Non-residential</li>
         </ul>
       </div>
     </div>
   </div>
+  <div class="autopilot-button card hidden">Restart Autopilot</div>
   <div class="source">
-    <span>Source:</span><a href="https://nyc.gov">NYC 3D Model</a> & <a href="https://blah">NYC PLUTO</a>
+    <span>Sources:</span>
+    <a href="https://www1.nyc.gov/site/doitt/initiatives/3d-building.page" target="_blank" rel="noopener noreferrer">NYC 3D Model</a>
+    &
+    <a href="https://www1.nyc.gov/site/planning/data-maps/open-data/dwn-pluto-mappluto.page" target="_blank" rel="noopener noreferrer">NYC PLUTO</a>
   </div>
   <div class="loader hidden">
     <h2>LOADING</h2>

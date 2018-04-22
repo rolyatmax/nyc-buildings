@@ -9,6 +9,7 @@ const createFxaaRenderer = require('./render-fxaa')
 const createBuildingsRenderer = require('./render-buildings')
 const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
+const cameraPositions = require('./camera-positions')
 
 const canvas = document.body.appendChild(document.querySelector('.viz'))
 window.addEventListener('resize', fit(canvas), false)
@@ -27,18 +28,9 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
-const ESB_CLOSE_UP = { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] }
-const DOWNTOWN_CLOSE_UP = { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] }
-const MIDTOWN_FROM_PARK = { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] }
-const ABOVE = { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] }
-const FROM_SIDE = { center: [8.674, 16.334, 0.100], eye: [36.409, 11.720, 0.117] }
-const START_FROM_SIDE = { center: [8.674, 16.334, 2], eye: [36.409, 11.720, 2.117] }
-const START_FROM_NJ = { center: [8.674, 16.334, 5], eye: [-19.003, 2.133, 8.623] }
-const START_FROM_BK = { center: [8.807, 19.479, 3], eye: [15.724, -15.344, 10.548] }
-
-const center = START_FROM_BK.center
-const eye = START_FROM_BK.eye
-const camera = createRoamingCamera(canvas, center, eye, getProjection)
+const center = cameraPositions.onStart.center
+const eye = cameraPositions.onStart.eye
+const camera = createRoamingCamera(canvas, center, eye, getProjection, cameraPositions.positions)
 
 window.moveTo = camera.moveTo
 
@@ -62,7 +54,7 @@ const settings = {
   animationSpeed: 0.1,
   animationSpread: 3000,
   loadingAnimationSpeed: 0.005,
-  colorCodeField: 'class',
+  colorCodeField: 'height',
   primitive: 'triangles',
   showFewerBuildings: false
 }
@@ -73,18 +65,16 @@ gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
 gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
 gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
 gui.add(settings, 'opacity', 0, 1).step(0.01)
-gui.add(settings, 'showFewerBuildings')
-gui.add({ roam: camera.startRoaming }, 'roam')
+gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
+gui.add({ roam: camera.startRoaming }, 'roam').name('Next Camera Position')
 
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
 renderButtons(settings)
 
-const positionsBuffer = regl.buffer({ usage: 'dynamic' })
-const barysBuffer = regl.buffer({ usage: 'dynamic' })
-const randomsBuffer = regl.buffer({ usage: 'dynamic' })
-const stateIndexesBuffer = regl.buffer({ usage: 'dynamic' })
-
-window.positionsBuffer = positionsBuffer
+const positionsBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH * 4 })
+const barysBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH * 4 })
+const randomsBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH / 3 * 4 })
+const stateIndexesBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH / 3 * 2 * 4 })
 
 let globalStateRender, stateTransitioner, renderBuildings
 let loaded = false
@@ -96,14 +86,15 @@ loadData(regl, settings, {
   onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
     loader.render(1)
     updateLoadingState({ positions, barys, randoms, buildings })
-    console.log('final:', buildingIdxToMetadataList.length)
     setTimeout(() => {
       loader.remove()
-      camera.moveTo(ABOVE)
+      camera.updateSpeed(0.005, 0.02)
+      camera.moveTo(cameraPositions.onFinishLoad)
       setTimeout(() => {
         document.body.classList.remove('for-intro')
         loaded = true
         window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
+        setTimeout(camera.startRoaming, 5000)
       }, 1500)
     }, 200)
   },
@@ -120,6 +111,13 @@ loadData(regl, settings, {
       }
     })
 
+    setTimeout(() => {
+      camera.updateSpeed(0.0015, 0.0015)
+      camera.moveTo(cameraPositions.onStartLoad)
+    }, 100)
+
+    let curPositionsLoaded = 0
+
     regl.frame((context) => {
       camera.tick()
 
@@ -127,13 +125,18 @@ loadData(regl, settings, {
 
       stateTransitioner.tick(context, settings)
 
-      if (!loaded && context.tick % 16 === 0) {
+      renderAutopilotButton()
+
+      if (!loaded && context.tick % 5 === 0) {
         const latest = getLatest()
-        console.log(latest.buildingIdxToMetadataList.length)
+        curPositionsLoaded = latest.positions.length / 3
         stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
         updateLoadingState(latest)
         loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
       }
+
+      // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
+      const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
 
       renderFxaa(context, () => {
         regl.clear({
@@ -142,9 +145,8 @@ loadData(regl, settings, {
         })
         globalStateRender(() => {
           renderBuildings({
-            primitive: loaded ? settings.primitive : 'lines',
-            // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
-            countMultiplier: settings.showFewerBuildings ? 0.495 : 1
+            primitive: settings.primitive,
+            count: (curPositionsLoaded * countMultiplier) | 0
           })
         })
       })
@@ -152,31 +154,52 @@ loadData(regl, settings, {
   }
 })
 
-function updateBufferIfNeeded(reglBuffer, dataArray) {
-  if (reglBuffer._buffer.byteLength / 4 !== dataArray.length) {
-    reglBuffer({ data: new Float32Array(dataArray) })
+const autopilotButton = document.querySelector('.autopilot-button')
+autopilotButton.addEventListener('click', () => {
+  camera.startRoaming()
+})
+function renderAutopilotButton() {
+  if (camera.isRoaming()) {
+    autopilotButton.classList.add('hidden')
+  } else {
+    autopilotButton.classList.remove('hidden')
   }
 }
+
+const createUpdateBufferFn = function() {
+  let lastI = 0
+  return function updatePositionsBuffer(buffer, dataArray) {
+    if (dataArray.length === lastI) return
+    const subDataOffset = lastI * 4
+    buffer.subdata(dataArray.slice(lastI), subDataOffset)
+    lastI = dataArray.length
+  }
+}
+
+const updatePositionsBuffer = createUpdateBufferFn()
+const updateBarysBuffer = createUpdateBufferFn()
+const updateRandomsBuffer = createUpdateBufferFn()
 
 function updateLoadingState({ positions, barys, randoms, buildings }) {
   updateStateIndexes({ positions, buildings })
-  updateBufferIfNeeded(positionsBuffer, positions)
-  updateBufferIfNeeded(barysBuffer, barys)
-  updateBufferIfNeeded(randomsBuffer, randoms)
+  updatePositionsBuffer(positionsBuffer, positions)
+  updateBarysBuffer(barysBuffer, barys)
+  updateRandomsBuffer(randomsBuffer, randoms)
 }
 
-let stateIndexes = new Float32Array(settings.POSITIONS_LENGTH / 3 * 2)
-let lastK = 0
-let lastI = 0
-function updateStateIndexes({ positions, buildings }) {
-  const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
-  let k = lastK
-  for (let i = lastI; i < positions.length / 3; i++) {
-    const stateIdx = buildingIdxToStateIndexes[buildings[i]]
-    stateIndexes[k++] = stateIdx[0]
-    stateIndexes[k++] = stateIdx[1]
-    lastK = k
-    lastI = i
+const updateStateIndexes = (function() {
+  let lastI = 0
+  return function updateStateIndexes({ positions, buildings }) {
+    const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
+    const newStateIndexes = new Float32Array((positions.length / 3 - lastI) * 2)
+    const subDataOffset = lastI * 2 * 4
+    let k = 0
+    for (let i = lastI; i < positions.length / 3; i++) {
+      const stateIdx = buildingIdxToStateIndexes[buildings[i]]
+      newStateIndexes[k++] = stateIdx[0]
+      newStateIndexes[k++] = stateIdx[1]
+      lastI = i
+    }
+    stateIndexesBuffer.subdata(newStateIndexes, subDataOffset)
   }
-  stateIndexesBuffer({ data: stateIndexes })
-}
+})()

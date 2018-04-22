@@ -1,11 +1,11 @@
-const buildingClassToHues = require('./building-classes')
+const buildingClasses = require('./building-classes')
 
 module.exports = function createButtons (container, settings) {
   const createBtnEl = () => document.createElement('button')
   const buttons = [
     { name: 'built', label: 'Age', el: createBtnEl(), keysHeight: 55 },
     { name: 'height', label: 'Height', el: createBtnEl(), keysHeight: 55 },
-    { name: 'class', label: 'Building Class', el: createBtnEl(), keysHeight: 140 }
+    { name: 'class', label: 'Building Class', el: createBtnEl(), keysHeight: 180 }
   ]
 
   buttons.forEach(({ name, label, el }) => {
@@ -19,7 +19,9 @@ module.exports = function createButtons (container, settings) {
   arrowEl.classList.add('arrow')
   arrowEl.style.left = (buttonWidth / 2 - 4) + 'px'
 
-  setupBuildingClassColors(document.querySelector('.controls-container .key.class'))
+  const buildingClassEls = Array.from(document.querySelector('.controls-container .key.class').querySelectorAll('ul li'))
+
+  setupBuildingClassColors()
 
   function renderButtons (settings) {
     const button = buttons.find(btn => btn.name === settings['colorCodeField'])
@@ -38,13 +40,36 @@ module.exports = function createButtons (container, settings) {
     })
     const keysEl = document.querySelector('.controls-container .keys')
     keysEl.style.height = `${button.keysHeight}px`
+
+    renderBuildingClassColors()
   }
 
-  function setupBuildingClassColors(classKeyEl) {
-    Array.from(classKeyEl.querySelectorAll('ul li')).forEach((li) => {
-      const color = buildingClassToHues[li.dataset.classType]
-      if (!color) throw new Error(`No color defined for class type: ${li.dataset.classType}`)
-      li.querySelector('span').style.backgroundColor = `rgb(${color.join(', ')})`
+  function setupBuildingClassColors () {
+    buildingClassEls.forEach((li) => {
+      const name = li.dataset.classType
+      if (!buildingClasses[name].canToggle) {
+        li.classList.add('disabled')
+        return
+      }
+      li.addEventListener('click', () => {
+        buildingClasses[name].active = !buildingClasses[name].active
+        renderBuildingClassColors()
+      })
+    })
+  }
+
+  function renderBuildingClassColors () {
+    buildingClassEls.forEach((li) => {
+      const name = li.dataset.classType
+      const { color, active } = buildingClasses[name]
+      if (!color) throw new Error(`No color defined for class type: ${name}`)
+      if (active) {
+        li.classList.add('active')
+        li.querySelector('span').style.backgroundColor = `rgb(${color.join(', ')})`
+      } else {
+        li.classList.remove('active')
+        li.querySelector('span').style.backgroundColor = `rgb(255, 255, 255)`
+      }
     })
   }
 

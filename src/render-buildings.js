@@ -17,6 +17,8 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       uniform mat4 projection;
       uniform mat4 view;
 
+      uniform bool isLoading;
+
       float rand(vec2 co){
         return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
       }
@@ -30,10 +32,15 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
         // EXPERIMENT! - set height offset in alpha channel
         // gl_Position = projection * view * vec4(position.xyz, 1);
         zOffset = (color.a - 1.0);
-        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.1, 1);
+        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);
 
         cameraDistance = gl_Position.z;
         
+        if (isLoading) {
+          fragColor = color;
+          return;
+        }
+
         // EXPERIMENT! - set height offset in alpha channel
         // fragColor = color;
         fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);
@@ -61,7 +68,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       void main() {
         if (isLoading) {
           gl_FragColor = fragColor;
-          gl_FragColor.a = 0.1;
+          // gl_FragColor.a = 0.1;
           return;
         }
 
@@ -85,7 +92,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
     `,
     uniforms: {
       wireframeDistanceThreshold: () => settings.wireframeDistanceThreshold,
-      thickness: () => settings.wireframeThickness,
+      thickness: () => settings.primitive.includes('triangle') ? settings.wireframeThickness : 0,
       opacity: () => settings.opacity
     },
     attributes: {
@@ -115,10 +122,10 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
     primitive: regl.prop('primitive') // 'triangles'
   })
 
-  return function render({ primitive, countMultiplier }) {
+  return function render({ primitive, count }) {
     renderBuildings({
       primitive,
-      count: (positionsBuffer._buffer.byteLength / 4 / 3 * countMultiplier) | 0
+      count
     })
   }
 }

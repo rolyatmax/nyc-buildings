@@ -1,11 +1,39 @@
 module.exports = {
-  'one-or-two-family': [207, 76, 115], // [186, 70, 138], // [19, 7, 137], // [87, 34, 125],
-  'condo': [87, 97, 211], // [45, 17, 64], // [111, 0, 168], // [134, 51, 145],
-  'co-op': [31, 179, 210], // [104, 41, 150], // [194, 60, 128], // [198, 75, 138],
-  'elevator': [123, 246, 89], // [240, 164, 160], // [253, 181, 46], // [233, 118, 145],
-  'walkup-and-mixed-use': [219, 227, 24], // [248, 230, 33], // [248, 205, 174], // [243, 239, 39], // [245, 181, 166],
-  'hotel': [254, 158, 108], // [109, 65, 173] // [58, 22, 82]
-  'non-residential': [225, 225, 225]
+  'one-or-two-family': {
+    color: [207, 76, 115],
+    active: true,
+    canToggle: true
+  },
+  'condo': {
+    color: [87, 97, 211],
+    active: true,
+    canToggle: true
+  },
+  'co-op': {
+    color: [31, 179, 210],
+    active: true,
+    canToggle: true
+  },
+  'elevator': {
+    color: [123, 246, 89],
+    active: true,
+    canToggle: true
+  },
+  'walkup-and-mixed-use': {
+    color: [219, 227, 24],
+    active: true,
+    canToggle: true
+  },
+  'hotel': {
+    color: [254, 158, 108],
+    active: true,
+    canToggle: true
+  },
+  'non-residential': {
+    color: [225, 225, 225],
+    active: true,
+    canToggle: false
+  }
 }
 
 // [245, 181, 166]
