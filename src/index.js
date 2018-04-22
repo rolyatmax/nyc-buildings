@@ -71,10 +71,43 @@ gui.add({ roam: camera.startRoaming }, 'roam').name('Next Camera Position')
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
 renderButtons(settings)
 
-const positionsBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH * 4 })
-const barysBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH * 4 })
-const randomsBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH / 3 * 4 })
-const stateIndexesBuffer = regl.buffer({ usage: 'dynamic', type: 'float', length: settings.POSITIONS_LENGTH / 3 * 2 * 4 })
+const get32BitSlotCount = (vertexCount) => (
+  vertexCount * 3 + // positions
+  vertexCount + // randoms
+  vertexCount * 2 + // stateIndexes
+  vertexCount * 3 // barys
+)
+
+const attributesBuffer = regl.buffer({
+  usage: 'dynamic',
+  type: 'float',
+  length: get32BitSlotCount(settings.POSITIONS_LENGTH / 3) * 4
+})
+
+const byteStride = get32BitSlotCount(1) * 4
+const positionsBuffer = {
+  buffer: attributesBuffer,
+  offset: 0,
+  stride: byteStride
+}
+
+const randomsBuffer = {
+  buffer: attributesBuffer,
+  offset: 3 * 4,
+  stride: byteStride
+}
+
+const stateIndexesBuffer = {
+  buffer: attributesBuffer,
+  offset: 4 * 4,
+  stride: byteStride
+}
+
+const barysBuffer = {
+  buffer: attributesBuffer,
+  offset: 6 * 4,
+  stride: byteStride
+}
 
 let globalStateRender, stateTransitioner, renderBuildings
 let loaded = false
@@ -166,40 +199,25 @@ function renderAutopilotButton() {
   }
 }
 
-const createUpdateBufferFn = function() {
-  let lastI = 0
-  return function updatePositionsBuffer(buffer, dataArray) {
-    if (dataArray.length === lastI) return
-    const subDataOffset = lastI * 4
-    buffer.subdata(dataArray.slice(lastI), subDataOffset)
-    lastI = dataArray.length
-  }
-}
-
-const updatePositionsBuffer = createUpdateBufferFn()
-const updateBarysBuffer = createUpdateBufferFn()
-const updateRandomsBuffer = createUpdateBufferFn()
-
+let lastI = 0
 function updateLoadingState({ positions, barys, randoms, buildings }) {
-  updateStateIndexes({ positions, buildings })
-  updatePositionsBuffer(positionsBuffer, positions)
-  updateBarysBuffer(barysBuffer, barys)
-  updateRandomsBuffer(randomsBuffer, randoms)
-}
-
-const updateStateIndexes = (function() {
-  let lastI = 0
-  return function updateStateIndexes({ positions, buildings }) {
-    const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
-    const newStateIndexes = new Float32Array((positions.length / 3 - lastI) * 2)
-    const subDataOffset = lastI * 2 * 4
-    let k = 0
-    for (let i = lastI; i < positions.length / 3; i++) {
-      const stateIdx = buildingIdxToStateIndexes[buildings[i]]
-      newStateIndexes[k++] = stateIdx[0]
-      newStateIndexes[k++] = stateIdx[1]
-      lastI = i
-    }
-    stateIndexesBuffer.subdata(newStateIndexes, subDataOffset)
+  const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
+  const stride = get32BitSlotCount(1)
+  const newData = new Float32Array((positions.length / 3 - lastI) * stride)
+  const subDataOffset = lastI * stride * 4
+  let k = 0
+  for (let i = lastI; i < positions.length / 3; i++) {
+    newData[k++] = positions[i * 3 + 0]
+    newData[k++] = positions[i * 3 + 1]
+    newData[k++] = positions[i * 3 + 2]
+    newData[k++] = randoms[i]
+    const stateIdx = buildingIdxToStateIndexes[buildings[i]]
+    newData[k++] = stateIdx[0]
+    newData[k++] = stateIdx[1]
+    newData[k++] = barys[i * 3 + 0]
+    newData[k++] = barys[i * 3 + 1]
+    newData[k++] = barys[i * 3 + 2]
+    lastI = i
   }
-})()
+  attributesBuffer.subdata(newData, subDataOffset)
+}
