@@ -236,7 +236,7 @@ function createCamera(element, options) {
   return camera
 }
 
-},{"3d-view":2,"has-passive-events":59,"mouse-change":67,"mouse-event-offset":68,"mouse-wheel":70,"right-now":77}],2:[function(require,module,exports){
+},{"3d-view":2,"has-passive-events":60,"mouse-change":68,"mouse-event-offset":69,"mouse-wheel":71,"right-now":78}],2:[function(require,module,exports){
 'use strict'
 
 module.exports = createViewController
@@ -359,7 +359,29 @@ function createViewController(options) {
     matrix: matrix
   }, mode)
 }
-},{"matrix-camera-controller":66,"orbit-camera-controller":72,"turntable-camera-controller":79}],3:[function(require,module,exports){
+},{"matrix-camera-controller":67,"orbit-camera-controller":73,"turntable-camera-controller":80}],3:[function(require,module,exports){
+'use strict';
+module.exports = function (arr) {
+	if (!Array.isArray(arr)) {
+		throw new TypeError('Expected Array, got ' + typeof arr);
+	}
+
+	var rand;
+	var tmp;
+	var len = arr.length;
+	var ret = arr.slice();
+
+	while (len) {
+		rand = Math.floor(Math.random() * len--);
+		tmp = ret[len];
+		ret[len] = ret[rand];
+		ret[rand] = tmp;
+	}
+
+	return ret;
+};
+
+},{}],4:[function(require,module,exports){
 "use strict"
 
 function compileSearch(funcName, predicate, reversed, extraArgs, useNdarray, earlyOut) {
@@ -421,7 +443,7 @@ module.exports = {
   eq: compileBoundsSearch("-", true, "EQ", true)
 }
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var unproject = require('camera-unproject')
 var set = require('gl-vec3/set')
 var sub = require('gl-vec3/subtract')
@@ -436,7 +458,7 @@ function createPickRay(origin, direction, point, viewport, invProjView) {
   sub(direction, direction, origin)
   normalize(direction, direction)
 }
-},{"camera-unproject":5,"gl-vec3/normalize":54,"gl-vec3/set":56,"gl-vec3/subtract":57}],5:[function(require,module,exports){
+},{"camera-unproject":6,"gl-vec3/normalize":55,"gl-vec3/set":57,"gl-vec3/subtract":58}],6:[function(require,module,exports){
 var transform = require('./lib/projectMat4')
 
 module.exports = unproject
@@ -477,7 +499,7 @@ function unproject (out, vec, viewport, invProjectionView) {
   return transform(out, out, invProjectionView)
 }
 
-},{"./lib/projectMat4":6}],6:[function(require,module,exports){
+},{"./lib/projectMat4":7}],7:[function(require,module,exports){
 module.exports = project
 
 /**
@@ -509,7 +531,7 @@ function project (out, vec, m) {
   return out
 }
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var size = require('element-size')
 
 module.exports = fit
@@ -559,7 +581,7 @@ function fit(canvas, parent, scale) {
   }
 }
 
-},{"element-size":21}],8:[function(require,module,exports){
+},{"element-size":22}],9:[function(require,module,exports){
 "use strict"
 
 function dcubicHermite(p0, v0, p1, v1, t, f) {
@@ -599,7 +621,7 @@ function cubicHermite(p0, v0, p1, v1, t, f) {
 
 module.exports = cubicHermite
 module.exports.derivative = dcubicHermite
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 // https://d3js.org/d3-array/ Version 1.2.1. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -1191,7 +1213,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 // https://d3js.org/d3-collection/ Version 1.0.4. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -1410,7 +1432,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 // https://d3js.org/d3-color/ Version 1.0.3. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -1935,7 +1957,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 // https://d3js.org/d3-format/ Version 1.2.2. Copyright 2018 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -2268,7 +2290,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 // https://d3js.org/d3-interpolate/ Version 1.1.6. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-color')) :
@@ -2815,7 +2837,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{"d3-color":11}],14:[function(require,module,exports){
+},{"d3-color":12}],15:[function(require,module,exports){
 // https://d3js.org/d3-scale-chromatic/ Version 1.2.0. Copyright 2018 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-interpolate'), require('d3-color')) :
@@ -3301,7 +3323,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{"d3-color":11,"d3-interpolate":13}],15:[function(require,module,exports){
+},{"d3-color":12,"d3-interpolate":14}],16:[function(require,module,exports){
 // https://d3js.org/d3-scale/ Version 2.0.0. Copyright 2018 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-array'), require('d3-collection'), require('d3-interpolate'), require('d3-format'), require('d3-time'), require('d3-time-format')) :
@@ -4170,7 +4192,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{"d3-array":9,"d3-collection":10,"d3-format":12,"d3-interpolate":13,"d3-time":17,"d3-time-format":16}],16:[function(require,module,exports){
+},{"d3-array":10,"d3-collection":11,"d3-format":13,"d3-interpolate":14,"d3-time":18,"d3-time-format":17}],17:[function(require,module,exports){
 // https://d3js.org/d3-time-format/ Version 2.1.1. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-time')) :
@@ -4860,7 +4882,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{"d3-time":17}],17:[function(require,module,exports){
+},{"d3-time":18}],18:[function(require,module,exports){
 // https://d3js.org/d3-time/ Version 1.0.8. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -5247,10 +5269,10 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 module.exports = require('./vendor/dat.gui')
 module.exports.color = require('./vendor/dat.color')
-},{"./vendor/dat.color":19,"./vendor/dat.gui":20}],19:[function(require,module,exports){
+},{"./vendor/dat.color":20,"./vendor/dat.gui":21}],20:[function(require,module,exports){
 /**
  * dat-gui JavaScript Controller Library
  * http://code.google.com/p/dat-gui
@@ -6006,7 +6028,7 @@ dat.color.math = (function () {
 })(),
 dat.color.toString,
 dat.utils.common);
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /**
  * dat-gui JavaScript Controller Library
  * http://code.google.com/p/dat-gui
@@ -9667,7 +9689,7 @@ dat.dom.CenteredDiv = (function (dom, common) {
 dat.utils.common),
 dat.dom.dom,
 dat.utils.common);
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 module.exports = getSize
 
 function getSize(element) {
@@ -9703,7 +9725,7 @@ function parse(prop) {
   return parseFloat(prop) || 0
 }
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict'
 
 module.exports = createFilteredVector
@@ -9996,7 +10018,7 @@ function createFilteredVector(initState, initVelocity, initTime) {
   }
 }
 
-},{"binary-search-bounds":3,"cubic-hermite":8}],23:[function(require,module,exports){
+},{"binary-search-bounds":4,"cubic-hermite":9}],24:[function(require,module,exports){
 module.exports = adjoint;
 
 /**
@@ -10030,7 +10052,7 @@ function adjoint(out, a) {
     out[15] =  (a00 * (a11 * a22 - a12 * a21) - a10 * (a01 * a22 - a02 * a21) + a20 * (a01 * a12 - a02 * a11));
     return out;
 };
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = clone;
 
 /**
@@ -10059,7 +10081,7 @@ function clone(a) {
     out[15] = a[15];
     return out;
 };
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = copy;
 
 /**
@@ -10088,7 +10110,7 @@ function copy(out, a) {
     out[15] = a[15];
     return out;
 };
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = create;
 
 /**
@@ -10116,7 +10138,7 @@ function create() {
     out[15] = 1;
     return out;
 };
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = determinant;
 
 /**
@@ -10147,7 +10169,7 @@ function determinant(a) {
     // Calculate the determinant
     return b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 };
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = fromQuat;
 
 /**
@@ -10195,7 +10217,7 @@ function fromQuat(out, q) {
 
     return out;
 };
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = fromRotationTranslation;
 
 /**
@@ -10249,7 +10271,7 @@ function fromRotationTranslation(out, q, v) {
     
     return out;
 };
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports = frustum;
 
 /**
@@ -10286,7 +10308,7 @@ function frustum(out, left, right, bottom, top, near, far) {
     out[15] = 0;
     return out;
 };
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = identity;
 
 /**
@@ -10314,7 +10336,7 @@ function identity(out) {
     out[15] = 1;
     return out;
 };
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = {
   create: require('./create')
   , clone: require('./clone')
@@ -10340,7 +10362,7 @@ module.exports = {
   , lookAt: require('./lookAt')
   , str: require('./str')
 }
-},{"./adjoint":23,"./clone":24,"./copy":25,"./create":26,"./determinant":27,"./fromQuat":28,"./fromRotationTranslation":29,"./frustum":30,"./identity":31,"./invert":33,"./lookAt":34,"./multiply":35,"./ortho":36,"./perspective":37,"./perspectiveFromFieldOfView":38,"./rotate":39,"./rotateX":40,"./rotateY":41,"./rotateZ":42,"./scale":43,"./str":44,"./translate":45,"./transpose":46}],33:[function(require,module,exports){
+},{"./adjoint":24,"./clone":25,"./copy":26,"./create":27,"./determinant":28,"./fromQuat":29,"./fromRotationTranslation":30,"./frustum":31,"./identity":32,"./invert":34,"./lookAt":35,"./multiply":36,"./ortho":37,"./perspective":38,"./perspectiveFromFieldOfView":39,"./rotate":40,"./rotateX":41,"./rotateY":42,"./rotateZ":43,"./scale":44,"./str":45,"./translate":46,"./transpose":47}],34:[function(require,module,exports){
 module.exports = invert;
 
 /**
@@ -10396,7 +10418,7 @@ function invert(out, a) {
 
     return out;
 };
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 var identity = require('./identity');
 
 module.exports = lookAt;
@@ -10487,7 +10509,7 @@ function lookAt(out, eye, center, up) {
 
     return out;
 };
-},{"./identity":31}],35:[function(require,module,exports){
+},{"./identity":32}],36:[function(require,module,exports){
 module.exports = multiply;
 
 /**
@@ -10530,7 +10552,7 @@ function multiply(out, a, b) {
     out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
     return out;
 };
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 module.exports = ortho;
 
 /**
@@ -10567,7 +10589,7 @@ function ortho(out, left, right, bottom, top, near, far) {
     out[15] = 1;
     return out;
 };
-},{}],37:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 module.exports = perspective;
 
 /**
@@ -10601,7 +10623,7 @@ function perspective(out, fovy, aspect, near, far) {
     out[15] = 0;
     return out;
 };
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 module.exports = perspectiveFromFieldOfView;
 
 /**
@@ -10643,7 +10665,7 @@ function perspectiveFromFieldOfView(out, fov, near, far) {
 }
 
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 module.exports = rotate;
 
 /**
@@ -10708,7 +10730,7 @@ function rotate(out, a, rad, axis) {
     }
     return out;
 };
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 module.exports = rotateX;
 
 /**
@@ -10753,7 +10775,7 @@ function rotateX(out, a, rad) {
     out[11] = a23 * c - a13 * s;
     return out;
 };
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 module.exports = rotateY;
 
 /**
@@ -10798,7 +10820,7 @@ function rotateY(out, a, rad) {
     out[11] = a03 * s + a23 * c;
     return out;
 };
-},{}],42:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 module.exports = rotateZ;
 
 /**
@@ -10843,7 +10865,7 @@ function rotateZ(out, a, rad) {
     out[7] = a13 * c - a03 * s;
     return out;
 };
-},{}],43:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 module.exports = scale;
 
 /**
@@ -10875,7 +10897,7 @@ function scale(out, a, v) {
     out[15] = a[15];
     return out;
 };
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 module.exports = str;
 
 /**
@@ -10890,7 +10912,7 @@ function str(a) {
                     a[8] + ', ' + a[9] + ', ' + a[10] + ', ' + a[11] + ', ' + 
                     a[12] + ', ' + a[13] + ', ' + a[14] + ', ' + a[15] + ')';
 };
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 module.exports = translate;
 
 /**
@@ -10929,7 +10951,7 @@ function translate(out, a, v) {
 
     return out;
 };
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 module.exports = transpose;
 
 /**
@@ -10979,7 +11001,7 @@ function transpose(out, a) {
     
     return out;
 };
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 module.exports = slerp
 
 /**
@@ -11032,7 +11054,7 @@ function slerp (out, a, b, t) {
   return out
 }
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 module.exports = add;
 
 /**
@@ -11049,7 +11071,7 @@ function add(out, a, b) {
     out[2] = a[2] + b[2]
     return out
 }
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 module.exports = copy;
 
 /**
@@ -11065,7 +11087,7 @@ function copy(out, a) {
     out[2] = a[2]
     return out
 }
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 module.exports = cross;
 
 /**
@@ -11085,7 +11107,7 @@ function cross(out, a, b) {
     out[2] = ax * by - ay * bx
     return out
 }
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = dot;
 
 /**
@@ -11098,7 +11120,7 @@ module.exports = dot;
 function dot(a, b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 module.exports = length;
 
 /**
@@ -11113,7 +11135,7 @@ function length(a) {
         z = a[2]
     return Math.sqrt(x*x + y*y + z*z)
 }
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 module.exports = lerp;
 
 /**
@@ -11134,7 +11156,7 @@ function lerp(out, a, b, t) {
     out[2] = az + t * (b[2] - az)
     return out
 }
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 module.exports = normalize;
 
 /**
@@ -11158,7 +11180,7 @@ function normalize(out, a) {
     }
     return out
 }
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 module.exports = scale;
 
 /**
@@ -11175,7 +11197,7 @@ function scale(out, a, b) {
     out[2] = a[2] * b
     return out
 }
-},{}],56:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 module.exports = set;
 
 /**
@@ -11193,7 +11215,7 @@ function set(out, x, y, z) {
     out[2] = z
     return out
 }
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 module.exports = subtract;
 
 /**
@@ -11210,7 +11232,7 @@ function subtract(out, a, b) {
     out[2] = a[2] - b[2]
     return out
 }
-},{}],58:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 module.exports = function(strings) {
   if (typeof strings === 'string') strings = [strings]
   var exprs = [].slice.call(arguments,1)
@@ -11222,7 +11244,7 @@ module.exports = function(strings) {
   return parts.join('')
 }
 
-},{}],59:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 'use strict'
 
 var isBrowser = require('is-browser')
@@ -11248,9 +11270,9 @@ function detect() {
 
 module.exports = isBrowser && detect()
 
-},{"is-browser":60}],60:[function(require,module,exports){
+},{"is-browser":61}],61:[function(require,module,exports){
 module.exports = true;
-},{}],61:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 (function (global){
 /*!
     localForage -- Offline Storage, Improved
@@ -14051,7 +14073,7 @@ module.exports = localforage_js;
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],62:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 /*jshint unused:true*/
 /*
 Input:  matrix      ; a 4x4 matrix
@@ -14231,7 +14253,7 @@ function combine(out, a, b, scale1, scale2) {
     out[1] = a[1] * scale1 + b[1] * scale2
     out[2] = a[2] * scale1 + b[2] * scale2
 }
-},{"./normalize":63,"gl-mat4/clone":24,"gl-mat4/create":26,"gl-mat4/determinant":27,"gl-mat4/invert":33,"gl-mat4/transpose":46,"gl-vec3/cross":50,"gl-vec3/dot":51,"gl-vec3/length":52,"gl-vec3/normalize":54}],63:[function(require,module,exports){
+},{"./normalize":64,"gl-mat4/clone":25,"gl-mat4/create":27,"gl-mat4/determinant":28,"gl-mat4/invert":34,"gl-mat4/transpose":47,"gl-vec3/cross":51,"gl-vec3/dot":52,"gl-vec3/length":53,"gl-vec3/normalize":55}],64:[function(require,module,exports){
 module.exports = function normalize(out, mat) {
     var m44 = mat[15]
     // Cannot normalize.
@@ -14242,7 +14264,7 @@ module.exports = function normalize(out, mat) {
         out[i] = mat[i] * scale
     return true
 }
-},{}],64:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 var lerp = require('gl-vec3/lerp')
 
 var recompose = require('mat4-recompose')
@@ -14295,7 +14317,7 @@ function vec3(n) {
 function vec4() {
     return [0,0,0,1]
 }
-},{"gl-mat4/determinant":27,"gl-vec3/lerp":53,"mat4-decompose":62,"mat4-recompose":65,"quat-slerp":74}],65:[function(require,module,exports){
+},{"gl-mat4/determinant":28,"gl-vec3/lerp":54,"mat4-decompose":63,"mat4-recompose":66,"quat-slerp":75}],66:[function(require,module,exports){
 /*
 Input:  translation ; a 3 component vector
         scale       ; a 3 component vector
@@ -14356,7 +14378,7 @@ module.exports = function recomposeMat4(matrix, translation, scale, skew, perspe
     mat4.scale(matrix, matrix, scale)
     return matrix
 }
-},{"gl-mat4/create":26,"gl-mat4/fromRotationTranslation":29,"gl-mat4/identity":31,"gl-mat4/multiply":35,"gl-mat4/scale":43,"gl-mat4/translate":45}],66:[function(require,module,exports){
+},{"gl-mat4/create":27,"gl-mat4/fromRotationTranslation":30,"gl-mat4/identity":32,"gl-mat4/multiply":36,"gl-mat4/scale":44,"gl-mat4/translate":46}],67:[function(require,module,exports){
 'use strict'
 
 var bsearch   = require('binary-search-bounds')
@@ -14556,7 +14578,7 @@ function createMatrixCameraController(options) {
   return new MatrixCameraController(matrix)
 }
 
-},{"binary-search-bounds":3,"gl-mat4/invert":33,"gl-mat4/lookAt":34,"gl-mat4/rotateX":40,"gl-mat4/rotateY":41,"gl-mat4/rotateZ":42,"gl-mat4/scale":43,"gl-mat4/translate":45,"gl-vec3/normalize":54,"mat4-interpolate":64}],67:[function(require,module,exports){
+},{"binary-search-bounds":4,"gl-mat4/invert":34,"gl-mat4/lookAt":35,"gl-mat4/rotateX":41,"gl-mat4/rotateY":42,"gl-mat4/rotateZ":43,"gl-mat4/scale":44,"gl-mat4/translate":46,"gl-vec3/normalize":55,"mat4-interpolate":65}],68:[function(require,module,exports){
 'use strict'
 
 module.exports = mouseListen
@@ -14763,7 +14785,7 @@ function mouseListen (element, callback) {
   return result
 }
 
-},{"mouse-event":69}],68:[function(require,module,exports){
+},{"mouse-event":70}],69:[function(require,module,exports){
 var rootPosition = { left: 0, top: 0 }
 
 module.exports = mouseEventOffset
@@ -14790,7 +14812,7 @@ function getBoundingClientOffset (element) {
   }
 }
 
-},{}],69:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 'use strict'
 
 function mouseButtons(ev) {
@@ -14852,7 +14874,7 @@ function mouseRelativeY(ev) {
 }
 exports.y = mouseRelativeY
 
-},{}],70:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 'use strict'
 
 var toPX = require('to-px')
@@ -14894,7 +14916,7 @@ function mouseWheelListen(element, callback, noScroll) {
   return listener
 }
 
-},{"to-px":78}],71:[function(require,module,exports){
+},{"to-px":79}],72:[function(require,module,exports){
 'use strict'
 
 module.exports = quatFromFrame
@@ -14936,7 +14958,7 @@ function quatFromFrame(
   }
   return out
 }
-},{}],72:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 'use strict'
 
 module.exports = createOrbitController
@@ -15330,7 +15352,7 @@ function createOrbitController(options) {
 
   return result
 }
-},{"./lib/quatFromFrame":71,"filtered-vector":22,"gl-mat4/fromQuat":28,"gl-mat4/invert":33,"gl-mat4/lookAt":34}],73:[function(require,module,exports){
+},{"./lib/quatFromFrame":72,"filtered-vector":23,"gl-mat4/fromQuat":29,"gl-mat4/invert":34,"gl-mat4/lookAt":35}],74:[function(require,module,exports){
 module.exports = function parseUnit(str, out) {
     if (!out)
         out = [ 0, '' ]
@@ -15341,9 +15363,9 @@ module.exports = function parseUnit(str, out) {
     out[1] = str.match(/[\d.\-\+]*\s*(.*)/)[1] || ''
     return out
 }
-},{}],74:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 module.exports = require('gl-quat/slerp')
-},{"gl-quat/slerp":47}],75:[function(require,module,exports){
+},{"gl-quat/slerp":48}],76:[function(require,module,exports){
 var dot = require('gl-vec3/dot')
 var add = require('gl-vec3/add')
 var scale = require('gl-vec3/scale')
@@ -15369,7 +15391,7 @@ function intersectRayPlane(out, origin, direction, normal, dist) {
   }
 }
 
-},{"gl-vec3/add":48,"gl-vec3/copy":49,"gl-vec3/dot":51,"gl-vec3/scale":55}],76:[function(require,module,exports){
+},{"gl-vec3/add":49,"gl-vec3/copy":50,"gl-vec3/dot":52,"gl-vec3/scale":56}],77:[function(require,module,exports){
 (function(da,ea){"object"===typeof exports&&"undefined"!==typeof module?module.exports=ea():"function"===typeof define&&define.amd?define(ea):da.createREGL=ea()})(this,function(){function da(a,b){this.id=vb++;this.type=a;this.data=b}function ea(a){if(0===a.length)return[];var b=a.charAt(0),c=a.charAt(a.length-1);if(1<a.length&&b===c&&('"'===b||"'"===b))return['"'+a.substr(1,a.length-2).replace(/\\/g,"\\\\").replace(/"/g,'\\"')+'"'];if(b=/\[(false|true|null|\d+|'[^']*'|"[^"]*")\]/.exec(a))return ea(a.substr(0,
 b.index)).concat(ea(b[1])).concat(ea(a.substr(b.index+b[0].length)));b=a.split(".");if(1===b.length)return['"'+a.replace(/\\/g,"\\\\").replace(/"/g,'\\"')+'"'];a=[];for(c=0;c<b.length;++c)a=a.concat(ea(b[c]));return a}function Wa(a){return"["+ea(a).join("][")+"]"}function wb(){var a={"":0},b=[""];return{id:function(c){var d=a[c];if(d)return d;d=a[c]=b.length;b.push(c);return d},str:function(a){return b[a]}}}function xb(a,b,c){function d(){var b=window.innerWidth,d=window.innerHeight;a!==document.body&&
 (d=a.getBoundingClientRect(),b=d.right-d.left,d=d.bottom-d.top);f.width=c*b;f.height=c*d;A(f.style,{width:b+"px",height:d+"px"})}var f=document.createElement("canvas");A(f.style,{border:0,margin:0,padding:0,top:0,left:0});a.appendChild(f);a===document.body&&(f.style.position="absolute",A(a.style,{margin:0,padding:0}));window.addEventListener("resize",d,!1);d();return{canvas:f,onDestroy:function(){window.removeEventListener("resize",d);a.removeChild(f)}}}function yb(a,b){function c(c){try{return a.getContext(c,
@@ -15518,7 +15540,7 @@ t),O=T.next,H=m.canvas,E=[],S=[],U=[],R=[a.onDestroy],ba=null;H&&(H.addEventList
 3),draw:p({}),buffer:function(a){return G.create(a,34962,!1,!1)},elements:function(a){return Q.create(a,!1)},texture:z.create2D,cube:z.createCube,renderbuffer:L.create,framebuffer:I.create,framebufferCube:I.createCube,attributes:e,frame:g,on:function(a,b){var c;switch(a){case "frame":return g(b);case "lost":c=S;break;case "restore":c=U;break;case "destroy":c=R}c.push(b);return{cancel:function(){for(var a=0;a<c.length;++a)if(c[a]===b){c[a]=c[c.length-1];c.pop();break}}}},limits:P,hasExtension:function(a){return 0<=
 P.extensions.indexOf(a.toLowerCase())},read:D,destroy:function(){E.length=0;d();H&&(H.removeEventListener("webglcontextlost",f),H.removeEventListener("webglcontextrestored",k));N.clear();I.clear();L.clear();z.clear();Q.clear();G.clear();x&&x.clear();R.forEach(function(a){a()})},_gl:m,_refresh:l,poll:function(){v();x&&x.update()},now:u,stats:w});a.onDone(null,e);return e}});
 
-},{}],77:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 (function (global){
 module.exports =
   global.performance &&
@@ -15529,7 +15551,7 @@ module.exports =
   }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],78:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 'use strict'
 
 var parseUnit = require('parse-unit')
@@ -15590,7 +15612,7 @@ function toPX(str, element) {
   }
   return 1
 }
-},{"parse-unit":73}],79:[function(require,module,exports){
+},{"parse-unit":74}],80:[function(require,module,exports){
 'use strict'
 
 module.exports = createTurntableController
@@ -16163,14 +16185,192 @@ function createTurntableController(options) {
     theta,
     phi)
 }
-},{"filtered-vector":22,"gl-mat4/invert":33,"gl-mat4/rotate":39,"gl-vec3/cross":50,"gl-vec3/dot":51,"gl-vec3/normalize":54}],80:[function(require,module,exports){
+},{"filtered-vector":23,"gl-mat4/invert":34,"gl-mat4/rotate":40,"gl-vec3/cross":51,"gl-vec3/dot":52,"gl-vec3/normalize":55}],81:[function(require,module,exports){
+module.exports = {
+  'one-or-two-family': {
+    color: [207, 76, 115],
+    active: true,
+    canToggle: true
+  },
+  'condo': {
+    color: [87, 97, 211],
+    active: true,
+    canToggle: true
+  },
+  'co-op': {
+    color: [31, 179, 210],
+    active: true,
+    canToggle: true
+  },
+  'elevator': {
+    color: [123, 246, 89],
+    active: true,
+    canToggle: true
+  },
+  'walkup-and-mixed-use': {
+    color: [219, 227, 24],
+    active: true,
+    canToggle: true
+  },
+  'hotel': {
+    color: [254, 158, 108],
+    active: true,
+    canToggle: true
+  },
+  'non-residential': {
+    color: [225, 225, 225],
+    active: true,
+    canToggle: false
+  }
+}
+
+// [245, 181, 166]
+// [233, 118, 145]
+// [198, 75, 138]
+// [134, 51, 145]
+// [87, 34, 125]
+// [58, 22, 82]
+
+// [243, 239, 39]
+// [253, 181, 46]
+// [194, 60, 128]
+// [111, 0, 168]
+// [19, 7, 137]
+
+// [248, 205, 174]
+// [240, 164, 160]
+// [186, 70, 138]
+// [104, 41, 150]
+// [45, 17, 64]
+
+// [248, 230, 33]
+// [157, 217, 59]
+// [34, 140, 141]
+// [53, 95, 141]
+// [109, 65, 173] - hotel
+// [207, 76, 115] - 1-2 family
+
+},{}],82:[function(require,module,exports){
+const shuffle = require('array-shuffle')
+
+module.exports = {
+  onStart: { center: [9.279, 18.211, 3.000], eye: [2.772, 12.456, 5.623] },
+  onStartLoad: { center: [8.801, 16.316, 0.100], eye: [21.503, -46.353, 19.065] },
+  onFinishLoad: { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] },
+  positions: shuffle([
+    { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] },
+    { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] },
+    { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] },
+    { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] },
+    { center: [8.674, 16.334, 0.100], eye: [36.409, 11.720, 0.117] },
+    { center: [9.279, 18.211, 3.000], eye: [2.772, 12.456, 5.623] },
+    { center: [8.177, 15.347, 0.100], eye: [15.380, -16.336, 8.740] },
+    { center: [8.801, 16.316, 0.100], eye: [21.503, -46.353, 19.065] },
+    { center: [8.674, 16.334, 2], eye: [36.409, 11.720, 2.117] },
+    { center: [9.683, 19.142, 3], eye: [3.062, 13.303, 4.879] },
+    { center: [8.807, 19.479, 3], eye: [15.724, -15.344, 10.548] },
+    { center: [4.012, 6.101, 0.100], eye: [3.626, 11.536, 1.748] },
+    { center: [6.725, 5.958, 0.100], eye: [7.326, 4.806, 1.210] },
+    { center: [8.106, 13.704, 0.100], eye: [7.933, 11.395, 1.043] },
+    { center: [8.586, 14.558, 0.100], eye: [8.070, 16.012, 0.968] },
+    { center: [9.447, 26.598, 0.100], eye: [11.017, 22.653, 5.127] },
+    { center: [9.718, 19.747, 0.100], eye: [10.708, 17.847, 1.716] },
+    { center: [11.145, 21.373, 0.100], eye: [12.479, 21.214, 0.957] },
+    { center: [13.271, 20.922, 0.100], eye: [12.521, 22.346, 1.489] },
+    { center: [6.049, 10.957, 0.100], eye: [4.703, 9.877, 2.401] },
+    { center: [1.224, 3.990, 0.100], eye: [-1.266, 4.188, 1.904] },
+    { center: [1.804, 2.909, 0.100], eye: [-2.721, 0.806, 2.780] },
+    { center: [14.481, 24.674, 0.100], eye: [14.198, 21.276, 4.898] },
+    { center: [18.049, 38.910, 0.100], eye: [18.981, 45.313, 2.641] }
+  ])
+}
+
+},{"array-shuffle":3}],83:[function(require,module,exports){
+module.exports = function createBuffers(regl, settings) {
+  const get32BitSlotCount = (vertexCount) => (
+    vertexCount * 3 + // positions
+    vertexCount + // randoms
+    vertexCount * 2 + // stateIndexes
+    vertexCount * 3 // barys
+  )
+
+  const attributesBuffer = regl.buffer({
+    usage: 'dynamic',
+    type: 'float',
+    length: get32BitSlotCount(settings.POSITIONS_LENGTH / 3) * 4
+  })
+
+  const byteStride = get32BitSlotCount(1) * 4
+  const positionsBuffer = {
+    buffer: attributesBuffer,
+    offset: 0,
+    stride: byteStride
+  }
+
+  const randomsBuffer = {
+    buffer: attributesBuffer,
+    offset: 3 * 4,
+    stride: byteStride
+  }
+
+  const stateIndexesBuffer = {
+    buffer: attributesBuffer,
+    offset: 4 * 4,
+    stride: byteStride
+  }
+
+  const barysBuffer = {
+    buffer: attributesBuffer,
+    offset: 6 * 4,
+    stride: byteStride
+  }
+
+  let lastI = 0
+  function update({ positions, barys, randoms, buildings }, buildingIdxToStateIndexes) {
+    const stride = get32BitSlotCount(1)
+    const newData = new Float32Array((positions.length / 3 - lastI) * stride)
+    const subDataOffset = lastI * stride * 4
+    let k = 0
+    for (let i = lastI; i < positions.length / 3; i++) {
+      newData[k++] = positions[i * 3 + 0]
+      newData[k++] = positions[i * 3 + 1]
+      newData[k++] = positions[i * 3 + 2]
+      newData[k++] = randoms[i]
+      const stateIdx = buildingIdxToStateIndexes[buildings[i]]
+      newData[k++] = stateIdx[0]
+      newData[k++] = stateIdx[1]
+      newData[k++] = barys[i * 3 + 0]
+      newData[k++] = barys[i * 3 + 1]
+      newData[k++] = barys[i * 3 + 2]
+      lastI = i
+    }
+    attributesBuffer.subdata(newData, subDataOffset)
+  }
+
+  function getAttributes() {
+    return {
+      positions: positionsBuffer,
+      randoms: randomsBuffer,
+      stateIndexes: stateIndexesBuffer,
+      barys: barysBuffer
+    }
+  }
+
+  return {
+    getAttributes,
+    update
+  }
+}
+
+},{}],84:[function(require,module,exports){
+const buildingClasses = require('./building-classes')
+
 module.exports = function createButtons (container, settings) {
   const createBtnEl = () => document.createElement('button')
   const buttons = [
-    { name: 'built', label: 'Age', el: createBtnEl() },
-    { name: 'zone', label: 'Zone', el: createBtnEl() },
-    { name: 'height', label: 'Height', el: createBtnEl() },
-    { name: 'class', label: 'Building Class', el: createBtnEl() }
+    { name: 'built', label: 'Age', el: createBtnEl(), keysHeight: 55 },
+    { name: 'height', label: 'Height', el: createBtnEl(), keysHeight: 55 },
+    { name: 'class', label: 'Building Class', el: createBtnEl(), keysHeight: 180 }
   ]
 
   buttons.forEach(({ name, label, el }) => {
@@ -16183,6 +16383,10 @@ module.exports = function createButtons (container, settings) {
   const arrowEl = container.appendChild(document.createElement('div'))
   arrowEl.classList.add('arrow')
   arrowEl.style.left = (buttonWidth / 2 - 4) + 'px'
+
+  const buildingClassEls = Array.from(document.querySelector('.controls-container .key.class').querySelectorAll('ul li'))
+
+  setupBuildingClassColors()
 
   function renderButtons (settings) {
     const button = buttons.find(btn => btn.name === settings['colorCodeField'])
@@ -16199,6 +16403,39 @@ module.exports = function createButtons (container, settings) {
         el.classList.remove('active')
       }
     })
+    const keysEl = document.querySelector('.controls-container .keys')
+    keysEl.style.height = `${button.keysHeight}px`
+
+    renderBuildingClassColors()
+  }
+
+  function setupBuildingClassColors () {
+    buildingClassEls.forEach((li) => {
+      const name = li.dataset.classType
+      if (!buildingClasses[name].canToggle) {
+        li.classList.add('disabled')
+        return
+      }
+      li.addEventListener('click', () => {
+        buildingClasses[name].active = !buildingClasses[name].active
+        renderBuildingClassColors()
+      })
+    })
+  }
+
+  function renderBuildingClassColors () {
+    buildingClassEls.forEach((li) => {
+      const name = li.dataset.classType
+      const { color, active } = buildingClasses[name]
+      if (!color) throw new Error(`No color defined for class type: ${name}`)
+      if (active) {
+        li.classList.add('active')
+        li.querySelector('span').style.backgroundColor = `rgb(${color.join(', ')})`
+      } else {
+        li.classList.remove('active')
+        li.querySelector('span').style.backgroundColor = `rgb(255, 255, 255)`
+      }
+    })
   }
 
   function toggleFilter (name) {
@@ -16209,15 +16446,16 @@ module.exports = function createButtons (container, settings) {
   return renderButtons
 }
 
-},{}],81:[function(require,module,exports){
+},{"./building-classes":81}],85:[function(require,module,exports){
 const mat4 = require('gl-mat4')
 const intersect = require('ray-plane-intersection')
 const pickRay = require('camera-picking-ray')
 // const { createSpring } = require('spring-animator')
 const createCamera = require('3d-view-controls')
 
-module.exports = function createRoamingCamera(canvas, center, eye, getProjection) {
+module.exports = function createRoamingCamera(canvas, center, eye, getProjection, roamingCameraPositions) {
   let isMoving = false
+  let isRoaming = true
   let timeout
 
   canvas.addEventListener('mousedown', stopRoaming)
@@ -16226,6 +16464,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
   const camera = createCamera(canvas, {
     zoomSpeed: 4,
     distanceLimits: [0.05, 500]
+  })
+
+  // convenience for getting camera coords
+  window.addEventListener('keypress', (e) => {
+    if (e.charCode === 32) { // SPACEBAR
+      console.log('{',
+        'center:', `[${camera.getCenter().map(v => parseFloat(v).toFixed(3)).join(', ')}],`,
+        'eye:', `[${camera.getEye().map(v => parseFloat(v).toFixed(3)).join(', ')}]`, '}'
+      )
+    }
   })
 
   const cameraX = createInterpolator(0.005, eye[0])
@@ -16283,10 +16531,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     cameraRoamLoop()
   }
 
+  let curCameraPosition = 0
   function cameraRoamLoop () {
     clearTimeout(timeout)
-    timeout = setTimeout(cameraRoamLoop, 10000)
-    setRandomCameraPosition()
+    timeout = setTimeout(cameraRoamLoop, 15000)
+    if (Math.random() < 0.5) {
+      curCameraPosition = (curCameraPosition + 1) % roamingCameraPositions.length
+      moveTo(roamingCameraPositions[curCameraPosition])
+    } else {
+      setRandomCameraPosition()
+    }
   }
 
   function moveTo ({ center, eye }) {
@@ -16299,6 +16553,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     cameraX.updateValue(eye[0])
     cameraY.updateValue(eye[1])
     cameraZ.updateValue(eye[2])
+  }
+
+  function updateSpeed (cameraSpeed, focusSpeed) {
+    cameraX.updateSpeed(cameraSpeed)
+    cameraY.updateSpeed(cameraSpeed)
+    cameraZ.updateSpeed(cameraSpeed)
+
+    focusX.updateSpeed(focusSpeed)
+    focusY.updateSpeed(focusSpeed)
+    focusZ.updateSpeed(focusSpeed)
   }
 
   function tick () {
@@ -16323,11 +16587,13 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     clearTimeout(timeout)
     timeout = null
     isMoving = false
+    isRoaming = false
   }
   function startRoaming () {
     setSpringsToCurrentCameraValues()
     cameraRoamLoop()
     isMoving = true
+    isRoaming = true
   }
 
   function setSpringsToCurrentCameraValues () {
@@ -16347,7 +16613,9 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     getCenter,
     getEye,
     startRoaming,
-    moveTo
+    isRoaming: () => isRoaming,
+    moveTo,
+    updateSpeed
   }
 }
 
@@ -16366,6 +16634,9 @@ function createInterpolator(speed, value) {
   let curValue = value
   let destValue = value
   return {
+    updateSpeed: (newSpeed) => {
+      speed = newSpeed
+    },
     updateValue: (val, shouldAnimate) => {
       destValue = val
       if (shouldAnimate === false) curValue = val
@@ -16386,11 +16657,12 @@ function createInterpolator(speed, value) {
   }
 }
 
-},{"3d-view-controls":1,"camera-picking-ray":4,"gl-mat4":32,"ray-plane-intersection":75}],82:[function(require,module,exports){
+},{"3d-view-controls":1,"camera-picking-ray":5,"gl-mat4":33,"ray-plane-intersection":76}],86:[function(require,module,exports){
 const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
-const { interpolateGnBu, interpolateCool } = require('d3-scale-chromatic')
+const { interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
+const buildingClasses = require('./building-classes')
 
 module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
@@ -16400,9 +16672,9 @@ module.exports = function createStateTransitioner (regl, settings) {
   const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
-    initialBuildingState[i * 4] = 1 // r
-    initialBuildingState[i * 4 + 1] = 1 // g
-    initialBuildingState[i * 4 + 2] = 1 // b
+    initialBuildingState[i * 4] = 0.2 // r
+    initialBuildingState[i * 4 + 1] = 0.2 // g
+    initialBuildingState[i * 4 + 2] = 0.2 // b
     initialBuildingState[i * 4 + 3] = 0 // a
   }
 
@@ -16433,7 +16705,7 @@ module.exports = function createStateTransitioner (regl, settings) {
     framebuffer: () => nextbuildingStateTexture,
 
     vert: glsl(["\n      precision mediump float;\n#define GLSLIFY 1\n\n      attribute vec2 position;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        // map bottom left -1,-1 (normalized device coords) to 0,0 (particle texture index)\n        // and 1,1 (ndc) to 1,1 (texture)\n        buildingStateIndex = 0.5 * (1.0 + position);\n        gl_Position = vec4(position, 0, 1);\n      }\n    ",""]),
-    frag: glsl(["\n      precision mediump float;\n#define GLSLIFY 1\n\n\n      uniform sampler2D curBuildingStateTexture;\n      uniform sampler2D prevBuildingStateTexture;\n      uniform sampler2D buildingMetaDataBuffer;\n\n      uniform float texelSize;\n      uniform float animationSpeed;\n      uniform float animationSpread;\n      uniform float time;\n      uniform float lastChangeTime;\n\n      uniform bool showBuilt;\n      uniform bool showZone;\n      uniform bool showClass;\n      uniform bool showHeight;\n      uniform bool isLoading;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        vec4 curColor = texture2D(curBuildingStateTexture, buildingStateIndex);\n        // vec4 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex);\n\n        vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);\n        float distFromCenter = firstSlot.a;\n\n        vec4 destColor = vec4(1, 1, 1, 0);\n        if (isLoading) {\n          if (firstSlot.r == 1.0) {\n            destColor = vec4(0.22, 0.22, 0.25, 0.6);\n          } else {\n            destColor = curColor;\n          }\n        } else {\n          if (showBuilt) {\n            destColor = vec4(firstSlot.rgb, 1);\n          }\n          if (showZone) {\n            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0)).rgb, 1);\n          }\n          if (showClass) {\n            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0).rgb, 1);\n          }\n          if (showHeight) {\n            destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);\n          }\n        }\n\n        // POTENTIAL OPTIMISATION: if curColor is within range of destColor, \n        // just skip the calculations and set to destColor\n\n        // distFromCenter is a float between 0->1\n        // transition over 2 seconds\n        float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;\n        float rate = (isLoading || time > start) ? 1.0 : 0.0;\n        vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;\n\n        gl_FragColor = nextColor;\n      }\n    ",""]),
+    frag: glsl(["\n      precision mediump float;\n#define GLSLIFY 1\n\n\n      uniform sampler2D curBuildingStateTexture;\n      uniform sampler2D prevBuildingStateTexture;\n      uniform sampler2D buildingMetaDataBuffer;\n\n      uniform float texelSize;\n      uniform float animationSpeed;\n      uniform float animationSpread;\n      uniform float time;\n      uniform float lastChangeTime;\n\n      uniform bool showBuilt;\n      uniform bool showClass;\n      uniform bool showHeight;\n\n      uniform bool showOneOrTwoFamily;\n      uniform bool showCondo;\n      uniform bool showCoop;\n      uniform bool showElevator;\n      uniform bool showWalkupAndMixedUse;\n      uniform bool showHotel;\n\n      uniform bool isLoading;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        vec4 curColor = texture2D(curBuildingStateTexture, buildingStateIndex);\n        // vec4 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex);\n\n        vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);\n        float distFromCenter = firstSlot.a;\n\n        vec4 destColor = vec4(0.01, 0.01, 0.01, 0);\n        if (isLoading) {\n          if (firstSlot.r == 1.0) {\n            destColor = vec4(0.52, 0.52, 0.55, 0.5);\n          } else {\n            destColor = curColor;\n          }\n          vec4 nextColor = curColor + (destColor - curColor) * animationSpeed;\n          gl_FragColor = nextColor;\n          return;\n        }\n\n        if (showBuilt) {\n          destColor = vec4(firstSlot.rgb, 1);\n        }\n        if (showHeight) {\n          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);\n        }\n        if (showClass) {\n          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0);\n          float buildingClassID = thirdSlot.a * 255.0;\n          if (\n            (buildingClassID == 0.0 && showOneOrTwoFamily) ||\n            (buildingClassID == 1.0 && showCondo) ||\n            (buildingClassID == 2.0 && showCoop) ||\n            (buildingClassID == 3.0 && showElevator) ||\n            (buildingClassID == 4.0 && showWalkupAndMixedUse) ||\n            (buildingClassID == 5.0 && showHotel)\n          ) {\n            destColor = vec4(thirdSlot.rgb, 1);\n          } else {\n            destColor = vec4(0);\n          }\n        }\n\n        // TEMP EXPERIMENT: Let's store height in the alpha channel just to see if it works well\n        if (destColor.rgb != vec3(0)) {\n          destColor.a = 1.0;\n        }\n\n        if (destColor.rgb == vec3(0)) {\n          destColor = vec4(0.4, 0.4, 0.4, 0.3);\n          // EXPERIMENT! - set height offset in alpha channel\n          destColor.a = 0.0;\n        }\n\n        // POTENTIAL OPTIMISATION: if curColor is within range of destColor, \n        // just skip the calculations and set to destColor\n\n        // distFromCenter is a float between 0->1\n        // transition over 2 seconds\n        float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;\n        float rate = (time > start) ? 1.0 : 0.0;\n        vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;\n\n        gl_FragColor = nextColor;\n      }\n    ",""]),
 
     attributes: {
       position: [
@@ -16454,9 +16726,16 @@ module.exports = function createStateTransitioner (regl, settings) {
       animationSpeed: regl.prop('animationSpeed'),
       animationSpread: regl.prop('animationSpread'),
       showBuilt: regl.prop('showBuilt'),
-      showZone: regl.prop('showZone'),
       showClass: regl.prop('showClass'),
       showHeight: regl.prop('showHeight'),
+
+      showOneOrTwoFamily: () => buildingClasses['one-or-two-family'].active,
+      showCondo: () => buildingClasses['condo'].active,
+      showCoop: () => buildingClasses['co-op'].active,
+      showElevator: () => buildingClasses['elevator'].active,
+      showWalkupAndMixedUse: () => buildingClasses['walkup-and-mixed-use'].active,
+      showHotel: () => buildingClasses['hotel'].active,
+
       isLoading: regl.prop('isLoading')
     },
 
@@ -16485,7 +16764,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       let metadataValue, color
 
       metadataValue = metadata ? metadata['built'] : null
-      color = metadataValue ? fieldToColorMappers['built'](metadataValue) : [0.1, 0.1, 0.1]
+      color = metadataValue ? fieldToColorMappers['built'](metadataValue) : [0, 0, 0]
       buildingMetaDataState[j * 16] = color[0] * 255
       buildingMetaDataState[j * 16 + 1] = color[1] * 255
       buildingMetaDataState[j * 16 + 2] = color[2] * 255
@@ -16494,20 +16773,24 @@ module.exports = function createStateTransitioner (regl, settings) {
       const center = [10.38, 21.57]
       buildingMetaDataState[j * 16 + 3] = distance(metadata['centroid'], center) * 4
 
-      metadataValue = metadata ? metadata['zone'] : null
-      color = metadataValue ? fieldToColorMappers['zone'](metadataValue) : [0.1, 0.1, 0.1]
-      buildingMetaDataState[j * 16 + 4] = color[0] * 255
-      buildingMetaDataState[j * 16 + 5] = color[1] * 255
-      buildingMetaDataState[j * 16 + 6] = color[2] * 255
+      // metadataValue = metadata ? metadata['zone'] : null
+      // color = metadataValue ? fieldToColorMappers['zone'](metadataValue) : [0, 0, 0]
+      // buildingMetaDataState[j * 16 + 4] = color[0] * 255
+      // buildingMetaDataState[j * 16 + 5] = color[1] * 255
+      // buildingMetaDataState[j * 16 + 6] = color[2] * 255
 
       metadataValue = metadata ? metadata['class'] : null
-      color = metadataValue ? fieldToColorMappers['class'](metadataValue) : [0.1, 0.1, 0.1]
+      const buildingClass = getBuildingClass(metadataValue)
+      color = buildingClass ? fieldToColorMappers['class'](buildingClass) : [0, 0, 0]
       buildingMetaDataState[j * 16 + 8] = color[0] * 255
       buildingMetaDataState[j * 16 + 9] = color[1] * 255
       buildingMetaDataState[j * 16 + 10] = color[2] * 255
 
+      const buildingClassID = buildingClassIDs[buildingClass]
+      buildingMetaDataState[j * 16 + 11] = buildingClassID
+
       metadataValue = metadata ? metadata['height'] : null
-      color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0.1, 0.1, 0.1]
+      color = metadataValue ? fieldToColorMappers['height'](metadataValue) : [0, 0, 0]
       buildingMetaDataState[j * 16 + 12] = color[0] * 255
       buildingMetaDataState[j * 16 + 13] = color[1] * 255
       buildingMetaDataState[j * 16 + 14] = color[2] * 255
@@ -16534,7 +16817,6 @@ module.exports = function createStateTransitioner (regl, settings) {
       animationSpread: curSettings.animationSpread,
       animationSpeed: context.isLoading ? curSettings.loadingAnimationSpeed : curSettings.animationSpeed,
       showBuilt: curSettings.colorCodeField === 'built',
-      showZone: curSettings.colorCodeField === 'zone',
       showClass: curSettings.colorCodeField === 'class',
       showHeight: curSettings.colorCodeField === 'height',
       isLoading: context.isLoading
@@ -16572,81 +16854,66 @@ module.exports = function createStateTransitioner (regl, settings) {
   }
 }
 
-// use HSL for these?
-window.bldgClassCounts = {}
 const fieldToColorMappers = {
-  class(val) {
-    window.bldgClassCounts[val] = window.bldgClassCounts[val] || 0
-    window.bldgClassCounts[val] += 1
-    switch (val[0]) {
-      case 'A': // one family dwellings
-        return [256, 0, 256].map(v => v / 256)
-      case 'B': // two family dwellings
-        return [0, 256, 256].map(v => v / 256)
-      case 'C': // walk up apartments
-        return [256, 256, 0].map(v => v / 256)
-      case 'D': // elevator apartments
-        return [0, 0, 256].map(v => v / 256)
-      case 'R': // condominiums
-        if (!['1', '2', '3', '4', '6', '9', 'D', 'M', 'R'].includes(val[1])) return [0.4, 0.4, 0.4]
-        return [0, 256, 0].map(v => v / 256)
-      case 'S': // residence- multiple use
-        return [256, 0, 0].map(v => v / 256)
-        // return [161, 217, 155].map(v => v / 256)
-      default:
-        return [0.4, 0.4, 0.4]
-
-      // case 'H': // hotels
-      //   return [136, 86, 167].map(v => v / 256)
-      // case 'J': // theatres
-      // case 'K': // store buildings (taxpayers included)
-      // case 'L': // loft buildings
-      //   return [158, 202, 225].map(v => v / 256)
-      // case 'O': // office buildings
-      //   return [49, 130, 189].map(v => v / 256)
-      // case 'M': // churches, synagogues
-      // case 'P': // places of public assembly (indoor)
-      // case 'Q': // outdoor recreation facilities
-      //   return [229, 245, 224].map(v => v / 256)
-      // case 'E': // warehouses
-      // case 'F': // factory & industrial buildings
-      // case 'G': // garages and gasoline stations
-      // case 'I': // hospitals and health
-      // case 'N': // asylums and homes
-      // case 'T': // transportation facilities
-      // case 'U': // utility bureau properties
-      // case 'V': // vacant land
-      // case 'W': // educational structures
-      // case 'Y': // selected government installations
-      // case 'Z': // misc
-      // default:
-      //   return [0.4, 0.4, 0.4]
-    }
-  },
-  zone(val) {
-    if (val[0] === 'R') return [49, 163, 84].map(v => v / 256)
-    if (val[0] === 'C') return [49, 130, 189].map(v => v / 256)
-    if (val[0] === 'M') return [254, 178, 76].map(v => v / 256)
-    if (val.slice(0, 4) === 'PARK') return [229, 245, 224].map(v => v / 256)
-    return [0.4, 0.4, 0.4]
+  class(buildingClass) {
+    if (!buildingClass) return [0, 0, 0]
+    const { color } = buildingClasses[buildingClass]
+    return color.map(v => v / 255)
   },
   height: (function() {
-    const domain = [0, 1.6] // 0 - 1800 feet
+    const domain = [0, 1.6] // [0 - 1800 feet]
     const scale = scaleSequential(interpolateCool).domain(domain)
     return (val) => {
       const color = rgb(scale(val))
-      return [color.r, color.g, color.b].map(v => v / 256)
+      return [color.r, color.g, color.b].map(v => v / 255)
     }
   })(),
   built: (function() {
-    const domain = [2017, 1820]
-    const scale = scaleSequential(interpolateGnBu).domain(domain)
+    const domain = [1840, 2019]
+    const scale = scaleSequential(interpolateMagma).domain(domain)
     return (val) => {
-      if (domain[1] > val) return [0.1, 0.1, 0.1]
+      if (val < 1800) return [0, 0, 0]
       const color = rgb(scale(val))
-      return [color.r, color.g, color.b].map(v => v / 256)
+      return [color.r, color.g, color.b].map(v => v / 255)
     }
   })()
+}
+
+function getBuildingClass(val) {
+  if (!val) return false
+  switch (val[0]) {
+    case 'A': // one family dwellings
+    case 'B': // two family dwellings
+      return 'one-or-two-family'
+    case 'C': // walk up apartments
+    case 'S': // residence- multiple use
+      if (['6', '8'].includes(val[1])) return 'co-op'
+      return 'walkup-and-mixed-use'
+    case 'D': // elevator apartments
+      if (['0', '4'].includes(val[1])) return 'co-op'
+      return 'elevator'
+    case 'R': // condominiums
+      if (['0', '1', '2', '3', '4', '6', 'D', 'M', 'R', 'X', 'Z'].includes(val[1])) return 'condo'
+      if (['9'].includes(val[1])) return 'co-op'
+      if (['H'].includes(val[1])) return 'hotel'
+      return false
+    case 'H': // hotels
+      if (['8'].includes(val[1])) return 'elevator' // 'dorm'
+      return 'hotel'
+    default:
+      return false
+  }
+}
+
+// storing building classes as 8-bit Uints in texture for use in shader
+const buildingClassIDs = {
+  'one-or-two-family': 0,
+  'condo': 1,
+  'co-op': 2,
+  'elevator': 3,
+  'walkup-and-mixed-use': 4,
+  'hotel': 5,
+  'non-residential': 6
 }
 
 function distance(a, b) {
@@ -16655,7 +16922,7 @@ function distance(a, b) {
   return Math.sqrt(x * x + y * y)
 }
 
-},{"d3-color":11,"d3-scale":15,"d3-scale-chromatic":14,"glslify":58}],83:[function(require,module,exports){
+},{"./building-classes":81,"d3-color":12,"d3-scale":16,"d3-scale-chromatic":15,"glslify":59}],87:[function(require,module,exports){
 const createRegl = require('regl')
 const fit = require('canvas-fit')
 const mat4 = require('gl-mat4')
@@ -16667,15 +16934,25 @@ const createFxaaRenderer = require('./render-fxaa')
 const createBuildingsRenderer = require('./render-buildings')
 const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
+const createBuffers = require('./create-buffers')
+const cameraPositions = require('./camera-positions')
 
-const canvas = document.body.appendChild(document.querySelector('.viz'))
+// TODO: figure this out!
+const isMobile = false
+
+if (isMobile) {
+  document.querySelector('.browser-warning').classList.remove('hidden')
+  throw new Error('Unable to run on this browser or device')
+} else {
+  document.querySelector('.browser-warning').remove()
+}
+
+const canvas = document.querySelector('.viz')
 window.addEventListener('resize', fit(canvas), false)
 const regl = createRegl({
-  extensions: ['oes_standard_derivatives'], // , 'oes_texture_float'],
+  extensions: ['oes_standard_derivatives'],
   canvas: canvas
 })
-
-window.regl = regl
 
 const getProjection = () => mat4.perspective(
   [],
@@ -16685,57 +16962,43 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
-// Empire close-up: { center: [8.807, 19.479, 0.1], eye: [9.976, 15.771, 1.858] }
-// Downtown close-up: { center: [2.134, 3.823, 0.100], eye: [1.615, -2.120, 1.307] }
-// Midtown from park: { center: [12.275, 22.259, 0.100], eye: [19.378, 27.368, 6.863] }
-
-const ABOVE = { center: [8.807, 19.479, 0.100], eye: [11.141, 9.103, 45.002] }
-const FROM_SIDE = { center: [8.674, 16.334, 0.100], eye: [36.409, 11.720, 0.117] }
-const START_FROM_SIDE = { center: [8.674, 16.334, 2.100], eye: [36.409, 11.720, 2.117] }
-
-const center = START_FROM_SIDE.center
-const eye = START_FROM_SIDE.eye
-const camera = createRoamingCamera(canvas, center, eye, getProjection)
-
-window.moveTo = camera.moveTo
-
-window.addEventListener('keypress', (e) => {
-  if (e.charCode === 32) {
-    console.log('{',
-      'center:', `[${camera.getCenter().map(v => parseFloat(v).toFixed(3)).join(', ')}],`,
-      'eye:', `[${camera.getEye().map(v => parseFloat(v).toFixed(3)).join(', ')}]`, '}'
-    )
-  }
-})
+const camera = createRoamingCamera(
+  canvas,
+  cameraPositions.onStart.center,
+  cameraPositions.onStart.eye,
+  getProjection,
+  cameraPositions.positions
+)
 
 const settings = {
   // hardcoding so we can set up stateTransitioner early and show loading progress
   BUILDINGS_COUNT: 45707,
   // hardcoding so we can set up stateIndexes array early
   POSITIONS_LENGTH: 32895792,
-  wireframeThickness: 0, // 0.005,
+  wireframeThickness: 0.003,
+  wireframeDistanceThreshold: 9,
   opacity: 0.65,
   animationSpeed: 0.1,
   animationSpread: 3000,
   loadingAnimationSpeed: 0.005,
-  colorCodeField: 'built'
+  colorCodeField: 'height',
+  primitive: 'triangles',
+  showFewerBuildings: false
 }
 
 const gui = new GUI()
 gui.closed = true
-gui.add(settings, 'wireframeThickness', 0, 0.35).step(0.001)
+gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
+gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
+gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
 gui.add(settings, 'opacity', 0, 1).step(0.01)
-gui.add({ roam: camera.startRoaming }, 'roam')
+gui.add(settings, 'showFewerBuildings').name('Fewer Buildings')
+gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
 
 const renderButtons = createButtons(document.querySelector('.button-group'), settings)
 renderButtons(settings)
 
-const positionsBuffer = regl.buffer({ usage: 'dynamic' })
-const barysBuffer = regl.buffer({ usage: 'dynamic' })
-const randomsBuffer = regl.buffer({ usage: 'dynamic' })
-const stateIndexesBuffer = regl.buffer({ usage: 'dynamic' })
-
-window.positionsBuffer = positionsBuffer
+const buffers = createBuffers(regl, settings)
 
 let globalStateRender, stateTransitioner, renderBuildings
 let loaded = false
@@ -16746,21 +17009,23 @@ const renderFxaa = createFxaaRenderer(regl)
 loadData(regl, settings, {
   onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
     loader.render(1)
-    updateLoadingState({ positions, barys, randoms, buildings })
-    console.log('final:', buildingIdxToMetadataList.length)
+    buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
     setTimeout(() => {
       loader.remove()
-      camera.moveTo(ABOVE)
+      camera.updateSpeed(0.005, 0.02)
+      camera.moveTo(cameraPositions.onFinishLoad)
       setTimeout(() => {
         document.body.classList.remove('for-intro')
         loaded = true
         window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
+        setTimeout(camera.startRoaming, 5000)
       }, 1500)
     }, 200)
   },
   onStart(getLatest) {
     stateTransitioner = createStateTransitioner(regl, settings)
-    renderBuildings = createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings)
+    const attrs = buffers.getAttributes()
+    renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
 
     globalStateRender = regl({
       uniforms: {
@@ -16771,6 +17036,13 @@ loadData(regl, settings, {
       }
     })
 
+    setTimeout(() => {
+      camera.updateSpeed(0.0015, 0.0015)
+      camera.moveTo(cameraPositions.onStartLoad)
+    }, 100)
+
+    let curPositionsLoaded = 0
+
     regl.frame((context) => {
       camera.tick()
 
@@ -16778,13 +17050,18 @@ loadData(regl, settings, {
 
       stateTransitioner.tick(context, settings)
 
-      if (!loaded && context.tick % 16 === 0) {
+      renderAutopilotButton()
+
+      if (!loaded && context.tick % 5 === 0) {
         const latest = getLatest()
-        console.log(latest.buildingIdxToMetadataList.length)
+        curPositionsLoaded = latest.positions.length / 3
         stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-        updateLoadingState(latest)
+        buffers.update(latest, stateTransitioner.getStateIndexes())
         loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
       }
+
+      // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
+      const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
 
       renderFxaa(context, () => {
         regl.clear({
@@ -16792,43 +17069,29 @@ loadData(regl, settings, {
           depth: 1
         })
         globalStateRender(() => {
-          renderBuildings({ primitive: loaded ? 'triangles' : 'lines' })
+          renderBuildings({
+            primitive: settings.primitive,
+            count: (curPositionsLoaded * countMultiplier) | 0
+          })
         })
       })
     })
   }
 })
 
-function updateBufferIfNeeded(reglBuffer, dataArray) {
-  if (reglBuffer._buffer.byteLength / 4 !== dataArray.length) {
-    reglBuffer({ data: new Float32Array(dataArray) })
+const autopilotButton = document.querySelector('.autopilot-button')
+autopilotButton.addEventListener('click', () => {
+  camera.startRoaming()
+})
+function renderAutopilotButton() {
+  if (camera.isRoaming()) {
+    autopilotButton.classList.add('hidden')
+  } else {
+    autopilotButton.classList.remove('hidden')
   }
 }
 
-function updateLoadingState({ positions, barys, randoms, buildings }) {
-  updateStateIndexes({ positions, buildings })
-  updateBufferIfNeeded(positionsBuffer, positions)
-  updateBufferIfNeeded(barysBuffer, barys)
-  updateBufferIfNeeded(randomsBuffer, randoms)
-}
-
-let stateIndexes = new Float32Array(settings.POSITIONS_LENGTH / 3 * 2)
-let lastK = 0
-let lastI = 0
-function updateStateIndexes({ positions, buildings }) {
-  const buildingIdxToStateIndexes = stateTransitioner.getStateIndexes()
-  let k = lastK
-  for (let i = lastI; i < positions.length / 3; i++) {
-    const stateIdx = buildingIdxToStateIndexes[buildings[i]]
-    stateIndexes[k++] = stateIdx[0]
-    stateIndexes[k++] = stateIdx[1]
-    lastK = k
-    lastI = i
-  }
-  stateIndexesBuffer({ data: stateIndexes })
-}
-
-},{"./create-buttons":80,"./create-roaming-camera":81,"./create-state-transitioner":82,"./load-data":84,"./render-buildings":86,"./render-fxaa":87,"./render-loader":88,"canvas-fit":7,"dat-gui":18,"gl-mat4":32,"regl":76}],84:[function(require,module,exports){
+},{"./camera-positions":82,"./create-buffers":83,"./create-buttons":84,"./create-roaming-camera":85,"./create-state-transitioner":86,"./load-data":88,"./render-buildings":90,"./render-fxaa":91,"./render-loader":92,"canvas-fit":8,"dat-gui":19,"gl-mat4":33,"regl":77}],88:[function(require,module,exports){
 const localForage = require('localforage')
 const createDataMunger = require('./munge-data')
 
@@ -16842,7 +17105,10 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
       window.requestIdleCallback(() => onDone(data))
     }).catch((err) => {
       console.log('Cache loading error:', err)
-      startFetch()
+      localForage.clear().then(() => {
+        console.log('Cache cleared')
+        startFetch()
+      })
     })
 
   function tryLoadingFromCache() {
@@ -16941,7 +17207,7 @@ function splitOnCSVComma(line) {
   return parts
 }
 
-},{"./munge-data":85,"localforage":61}],85:[function(require,module,exports){
+},{"./munge-data":89,"localforage":62}],89:[function(require,module,exports){
 // const getNormal = require('triangle-normal')
 
 const BUILDING_DELIMITER = [255, 255, 255, 255]
@@ -16963,10 +17229,8 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
     let isFirstChunk = true
     let isLastChunk = false
     if (meshRes.body && meshRes.body.getReader) {
-      let k = 0
       const reader = meshRes.body.getReader()
       reader.read().then(function processStream({ done, value }) {
-        k += 1
         if (isFirstChunk) {
           processChunk(value)
           onStart(getLatest)
@@ -16977,7 +17241,6 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
             processChunk(value)
             if (done) {
               window.requestIdleCallback(() => onDone(getLatest()))
-              console.log(k, 'chunks')
             }
           })
         }
@@ -17237,15 +17500,16 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
   }
 }
 
-},{}],86:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 const glsl = require('glslify')
 
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
-  return regl({
-    vert: glsl(["#define GLSLIFY 1\n\n      attribute vec3 position;\n      attribute vec3 bary;\n      attribute float random;\n      attribute vec2 stateIndex;\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float vOpacity;\n\n      uniform sampler2D buildingState;\n      uniform mat4 projection;\n      uniform mat4 view;\n\n      float rand(vec2 co){\n        return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\n      }\n\n      void main() {\n        barycentric = bary;\n        vOpacity = 1.0;\n\n        vec4 color = texture2D(buildingState, stateIndex);\n\n        gl_Position = projection * view * vec4(position.xyz, 1);\n        // float camDistance = clamp(gl_Position.z / 2.0 + 0.5, 0.0, 1.0);\n        // float opacity = pow(1.0 - camDistance, 8.0);\n        fragColor = color;\n        // fragColor.a *= opacity;\n      }\n    ",""]),
-    frag: glsl(["\n      #extension GL_OES_standard_derivatives : enable\n\n      precision highp float;\n#define GLSLIFY 1\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float vOpacity;\n\n      uniform float thickness;\n      uniform float opacity;\n      uniform bool isLoading;\n\n      float aastep (float threshold, float dist) {\n        float afwidth = fwidth(dist) * 0.5;\n        return smoothstep(threshold - afwidth, threshold + afwidth, dist);\n      }\n\n      void main() {\n        if (isLoading) {\n          gl_FragColor = fragColor;\n          return;\n        }\n\n        float d = min(min(barycentric.x, barycentric.y), barycentric.z);\n        float positionAlong = max(barycentric.x, barycentric.y);\n        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {\n          positionAlong = 1.0 - positionAlong;\n        }\n        if (thickness == 0.0) {\n          gl_FragColor = vec4(fragColor.rgb, opacity);\n        } else {\n          float computedThickness = thickness;\n          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));\n          float edge = 1.0 - aastep(computedThickness, d);\n          gl_FragColor = mix(vec4(fragColor.rgb, opacity), vec4(0.18, 0.18, 0.18, 1.0), edge);\n        }\n        gl_FragColor.a = vOpacity * opacity;\n      }\n    ",""]),
+  const renderBuildings = regl({
+    vert: glsl(["#define GLSLIFY 1\n\n      attribute vec3 position;\n      attribute vec3 bary;\n      attribute float random;\n      attribute vec2 stateIndex;\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform sampler2D buildingState;\n      uniform mat4 projection;\n      uniform mat4 view;\n\n      uniform bool isLoading;\n\n      float rand(vec2 co){\n        return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\n      }\n\n      void main() {\n        gl_PointSize = 1.5;\n        barycentric = bary;\n\n        vec4 color = texture2D(buildingState, stateIndex);\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // gl_Position = projection * view * vec4(position.xyz, 1);\n        zOffset = (color.a - 1.0);\n        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);\n\n        cameraDistance = gl_Position.z;\n        \n        if (isLoading) {\n          fragColor = color;\n          return;\n        }\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // fragColor = color;\n        fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);\n      }\n    ",""]),
+    frag: glsl(["\n      #extension GL_OES_standard_derivatives : enable\n\n      precision highp float;\n#define GLSLIFY 1\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform float wireframeDistanceThreshold;\n      uniform float thickness;\n      uniform float opacity;\n      uniform bool isLoading;\n\n      float aastep (float threshold, float dist) {\n        float afwidth = fwidth(dist) * 0.5;\n        return smoothstep(threshold - afwidth, threshold + afwidth, dist);\n      }\n\n      void main() {\n        if (isLoading) {\n          gl_FragColor = fragColor;\n          // gl_FragColor.a = 0.1;\n          return;\n        }\n\n        float d = min(min(barycentric.x, barycentric.y), barycentric.z);\n        float positionAlong = max(barycentric.x, barycentric.y);\n        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {\n          positionAlong = 1.0 - positionAlong;\n        }\n        if (thickness == 0.0) {\n          gl_FragColor = fragColor;\n          gl_FragColor.a *= opacity;\n        } else {\n          float computedThickness = thickness;\n          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));\n          float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;\n          float edge = (1.0 - aastep(computedThickness, d)) * multiplier;\n          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);\n          gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));\n        }\n      }\n    ",""]),
     uniforms: {
-      thickness: () => settings.wireframeThickness,
+      wireframeDistanceThreshold: () => settings.wireframeDistanceThreshold,
+      thickness: () => settings.primitive.includes('triangle') ? settings.wireframeThickness : 0,
       opacity: () => settings.opacity
     },
     attributes: {
@@ -17271,12 +17535,19 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
         alpha: 'add'
       }
     },
-    count: () => positionsBuffer._buffer.byteLength / 4 / 3,
+    count: regl.prop('count'),
     primitive: regl.prop('primitive') // 'triangles'
   })
+
+  return function render({ primitive, count }) {
+    renderBuildings({
+      primitive,
+      count
+    })
+  }
 }
 
-},{"glslify":58}],87:[function(require,module,exports){
+},{"glslify":59}],91:[function(require,module,exports){
 const glsl = require('glslify')
 
 module.exports = function createFxaaRenderer(regl) {
@@ -17319,17 +17590,22 @@ module.exports = function createFxaaRenderer(regl) {
   }
 }
 
-},{"glslify":58}],88:[function(require,module,exports){
+},{"glslify":59}],92:[function(require,module,exports){
 module.exports = function createLoaderRenderer(element) {
   const loadedEl = element.querySelector('.loaded')
   let lowerBound = 0.05
   let curT = 0
 
+  window.requestAnimationFrame(() => {
+    document.querySelector('.title h1').classList.remove('hidden')
+    element.classList.remove('hidden')
+  })
+
   let lastT = curT
   setTimeout(function loop() {
     if (curT < 1) setTimeout(loop, 1000)
     if (lastT === curT) {
-      console.log('updating lowerBound!')
+      console.log('updating progress bar lowerBound!')
       lowerBound += Math.random() * 0.02
       lowerBound = Math.min(lowerBound, 0.95)
       render(curT)
@@ -17351,59 +17627,6 @@ module.exports = function createLoaderRenderer(element) {
     element.style.opacity = 0
     setTimeout(() => element.parentElement.removeChild(element), 800)
   }
-
-  // return regl({
-  //   vert: glsl`
-  //     attribute vec3 position;
-
-  //     varying vec4 fragColor;
-  //     varying float vOpacity;
-
-  //     uniform mat4 projection;
-  //     uniform mat4 view;
-
-  //     void main() {
-  //       vOpacity = 1.0;
-
-  //       vec3 color = vec3(0.15);
-
-  //       gl_PointSize = 1.0;
-  //       gl_Position = projection * view * vec4(position.xyz, 1);
-  //       float opacity = 0.2;
-  //       fragColor = vec4(color, opacity);
-  //     }
-  //   `,
-  //   frag: glsl`
-  //     precision highp float;
-  //     varying vec4 fragColor;
-  //     varying float vOpacity;
-
-  //     void main() {
-  //       gl_FragColor = fragColor;
-  //       gl_FragColor.a *= vOpacity;
-  //     }
-  //   `,
-  //   attributes: {
-  //     position: positionsBuffer,
-  //     bary: barysBuffer,
-  //     random: randomsBuffer
-  //   },
-  //   blend: {
-  //     enable: true,
-  //     func: {
-  //       srcRGB: 'src alpha',
-  //       srcAlpha: 1,
-  //       dstRGB: 'one minus src alpha',
-  //       dstAlpha: 1
-  //     },
-  //     equation: {
-  //       rgb: 'add',
-  //       alpha: 'add'
-  //     }
-  //   },
-  //   count: () => positionsBuffer._buffer.byteLength / 4 / 3,
-  //   primitive: 'triangles'
-  // })
 }
 
-},{}]},{},[83]);
+},{}]},{},[87]);
