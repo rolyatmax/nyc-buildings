@@ -378,20 +378,47 @@
     .browser-warning {
       opacity: 1;
       position: absolute;
+      z-index: 100;
       top: 0;
       left: 0;
       width: 100vw;
       margin: 0;
       padding: 0;
+      font-size: 22px;
       transition: opacity 400ms linear;
     }
 
-    .browser-warning h2 {
+    .browser-warning section {
       width: 440px;
       line-height: 1.5em;
       margin: 100px auto;
       color: #666;
       font-weight: 200;
+    }
+
+    .browser-warning button {
+      font-weight: 200;
+      color: #666;
+      background-color: #fff;
+      display: block;
+      margin: 45px auto;
+      padding: 15px 40px;
+      font-size: 20px;
+      border: 1px solid #666;
+      cursor: pointer;
+      transition: all 150ms linear;
+    }
+
+    .browser-warning button:hover {
+      background-color: #92a9ce;
+      color: white;
+      border: 1px solid white;
+    }
+
+    button::-moz-focus-inner,
+    input::-moz-focus-inner {
+      border: 0;
+      padding: 0;
     }
 
     .browser-warning.hidden {
@@ -401,11 +428,19 @@
 </head>
 <body class="for-intro">
   <canvas class="viz"></canvas>
-  <div class="browser-warning hidden">
-    <h2>Unfortunately, I've had some issues getting this running on mobile devices.
-    It is strongly recommended you view this on Desktop Chrome 😬 <!-- <br><br> In the
-    meantime, here's a video: --></h2>
-    <!-- <video controls src="video/audiofabric.mov" type="video/quicktime" class="media-document iPhone video"></video> -->
+  <div class="browser-warning ios hidden">
+    <section>
+      <p>Unfortunately, there have been some issues getting this running on iOS due to memory constraints.
+      It is strongly recommended you view this on Desktop Chrome 😬 </p>
+    </section>
+  </div>
+  <div class="browser-warning non-chrome hidden">
+    <section>
+      <p>Before we download a bunch of data, I just wanna mention this visualization tends to work best with Chrome.</p>
+      <p>If you choose to go ahead and view with this browser, you can generally improve its performance by selecting
+      "Fewer Buildings" from the dropdown controls menu in the upper righthand corner of the screen.</p>
+      <button class="ok">Okay</button>
+    </section>
   </div>
   <div class="title card">
     <h1 class="hidden">All the Buildings in Manhattan</h1>
