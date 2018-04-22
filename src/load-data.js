@@ -66,7 +66,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
   }
 
   function prefixURL(url) {
-    return settings.isDev ? `models/${url}` : `${settings.objectStorageURL}${url}`
+    return window.IS_DEV ? `models/${url}` : `${settings.objectStorageURL}${url}`
   }
 }
 

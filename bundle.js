@@ -16894,11 +16894,6 @@ module.exports = function createStateTransitioner (regl, settings) {
       lastIdxLoaded = j
     }
     buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
-    buildingMetaDataBuffer({
-      color: buildingMetaDataTexture,
-      depth: false,
-      stencil: false
-    })
   }
 
   function setupMetaData(buildingIdxToMetadataList) {
@@ -17083,8 +17078,6 @@ const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
 const showBrowserWarning = require('./browser-warning')
 
-const isDev = !document.location.origin.includes('tbaldw.in')
-
 showBrowserWarning().then(function start() {
   const canvas = document.querySelector('.viz')
   window.addEventListener('resize', fit(canvas), false)
@@ -17110,7 +17103,6 @@ showBrowserWarning().then(function start() {
   )
 
   const settings = {
-    isDev: isDev,
     objectStorageURL: 'https://tbaldwin.nyc3.digitaloceanspaces.com/',
     // hardcoding so we can set up stateTransitioner early and show loading progress
     BUILDINGS_COUNT: 45707,
@@ -17303,7 +17295,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
   }
 
   function prefixURL(url) {
-    return settings.isDev ? `models/${url}` : `${settings.objectStorageURL}${url}`
+    return window.IS_DEV ? `models/${url}` : `${settings.objectStorageURL}${url}`
   }
 }
 

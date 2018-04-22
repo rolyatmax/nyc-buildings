@@ -194,11 +194,6 @@ module.exports = function createStateTransitioner (regl, settings) {
       lastIdxLoaded = j
     }
     buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
-    buildingMetaDataBuffer({
-      color: buildingMetaDataTexture,
-      depth: false,
-      stencil: false
-    })
   }
 
   function setupMetaData(buildingIdxToMetadataList) {

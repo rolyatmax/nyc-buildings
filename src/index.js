@@ -14,8 +14,6 @@ const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
 const showBrowserWarning = require('./browser-warning')
 
-const isDev = !document.location.origin.includes('tbaldw.in')
-
 showBrowserWarning().then(function start() {
   const canvas = document.querySelector('.viz')
   window.addEventListener('resize', fit(canvas), false)
@@ -41,7 +39,6 @@ showBrowserWarning().then(function start() {
   )
 
   const settings = {
-    isDev: isDev,
     objectStorageURL: 'https://tbaldwin.nyc3.digitaloceanspaces.com/',
     // hardcoding so we can set up stateTransitioner early and show loading progress
     BUILDINGS_COUNT: 45707,
