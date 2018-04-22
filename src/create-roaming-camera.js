@@ -41,13 +41,17 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     [0, 0, 999]
   )
 
+  let alreadyClicked = false
   function onMouseDown () {
-    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'mousedown')
+    if (!window.IS_DEV && !alreadyClicked) window.ga('send', 'event', 'Visualization', 'interaction', 'mousedown')
+    alreadyClicked = true
     stopRoaming()
   }
 
+  let alreadyDoubleClicked = false
   function onDblClick (e) {
-    if (!window.IS_DEV) window.ga('send', 'event', 'Visualization', 'interaction', 'double-click')
+    if (!window.IS_DEV && !alreadyDoubleClicked) window.ga('send', 'event', 'Visualization', 'interaction', 'double-click')
+    alreadyDoubleClicked = true
     const [fX, fY] = getIntersection(
       [e.clientX, e.clientY],
       // prob not the best idea since elsewhere we are using `viewportWidth`

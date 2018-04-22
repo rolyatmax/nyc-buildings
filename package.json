@@ -1,9 +1,17 @@
 {
   "name": "nyc-buildings",
   "version": "0.0.1",
+  "homepage": "https://tbaldw.in/nyc-buildings",
+  "authors": [
+    "Taylor Baldwin <taylorbaldwin@gmail.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:rolyatmax/nyc-buildings.git"
+},
   "scripts": {
     "start": "budo src/index.js:bundle.js --live --open",
-    "build": "browserify src/index.js > bundle.js && gzip -k bundle.js",
+    "build": "browserify src/index.js > bundle.js",
     "serve": "open http://localhost:8080 && python -m SimpleHTTPServer 8080"
   },
   "dependencies": {
