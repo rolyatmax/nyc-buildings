@@ -17,6 +17,16 @@ module.exports = function createRoamingCamera(canvas, center, eye, getProjection
     distanceLimits: [0.05, 500]
   })
 
+  // convenience for getting camera coords
+  window.addEventListener('keypress', (e) => {
+    if (e.charCode === 32) { // SPACEBAR
+      console.log('{',
+        'center:', `[${camera.getCenter().map(v => parseFloat(v).toFixed(3)).join(', ')}],`,
+        'eye:', `[${camera.getEye().map(v => parseFloat(v).toFixed(3)).join(', ')}]`, '}'
+      )
+    }
+  })
+
   const cameraX = createInterpolator(0.005, eye[0])
   const cameraY = createInterpolator(0.005, eye[1])
   const cameraZ = createInterpolator(0.005, eye[2])

@@ -29,8 +29,6 @@ const regl = createRegl({
   canvas: canvas
 })
 
-window.regl = regl
-
 const getProjection = () => mat4.perspective(
   [],
   Math.PI / 4,
@@ -39,20 +37,13 @@ const getProjection = () => mat4.perspective(
   1000
 )
 
-const center = cameraPositions.onStart.center
-const eye = cameraPositions.onStart.eye
-const camera = createRoamingCamera(canvas, center, eye, getProjection, cameraPositions.positions)
-
-window.moveTo = camera.moveTo
-
-window.addEventListener('keypress', (e) => {
-  if (e.charCode === 32) {
-    console.log('{',
-      'center:', `[${camera.getCenter().map(v => parseFloat(v).toFixed(3)).join(', ')}],`,
-      'eye:', `[${camera.getEye().map(v => parseFloat(v).toFixed(3)).join(', ')}]`, '}'
-    )
-  }
-})
+const camera = createRoamingCamera(
+  canvas,
+  cameraPositions.onStart.center,
+  cameraPositions.onStart.eye,
+  getProjection,
+  cameraPositions.positions
+)
 
 const settings = {
   // hardcoding so we can set up stateTransitioner early and show loading progress
