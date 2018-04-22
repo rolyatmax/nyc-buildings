@@ -17083,7 +17083,7 @@ const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
 const showBrowserWarning = require('./browser-warning')
 
-const isDev = document.location.origin.includes('tbaldw.in') !== 0
+const isDev = !document.location.origin.includes('tbaldw.in')
 
 showBrowserWarning().then(function start() {
   const canvas = document.querySelector('.viz')
@@ -17270,11 +17270,11 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
   }
 
   function startFetch() {
-    const metadataFetch = window.fetch(prefixURL('models/manhattan.pluto.filtered.csv'))
+    const metadataFetch = window.fetch(prefixURL('manhattan.pluto.filtered.csv'))
       .then(res => res.text())
       .then(parseMetadataCSV)
 
-    const binToBBLMapFetch = window.fetch(prefixURL('models/bin-to-bbl.csv'))
+    const binToBBLMapFetch = window.fetch(prefixURL('bin-to-bbl.csv'))
       .then(res => res.text())
       .then(parseBinToBBLMapCSV)
 
@@ -17293,7 +17293,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
 
     Promise.all([metadataFetch, binToBBLMapFetch])
       .then(([metadata, binToBBLMap]) => {
-        const geometryFetch = window.fetch(prefixURL('models/manhattan.indexed.building.triangles.binary'))
+        const geometryFetch = window.fetch(prefixURL('manhattan.indexed.building.triangles.binary'))
         return Promise.all([
           geometryFetch,
           Promise.resolve(metadata),
@@ -17303,7 +17303,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
   }
 
   function prefixURL(url) {
-    return settings.isDev ? url : settings.objectStorageURL
+    return settings.isDev ? `models/${url}` : `${settings.objectStorageURL}${url}`
   }
 }
 
