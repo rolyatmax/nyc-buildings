@@ -189,11 +189,12 @@
       position: absolute;
       bottom: 50px;
       padding: 5px 0;
-      font-size: 12px;
+      font-size: 11px;
       text-align: center;
       color: #999;
       cursor: pointer;
       background-color: #fff;
+      text-transform: uppercase;
     }
 
     .autopilot-button:hover {
@@ -373,18 +374,39 @@
       background: #555;
       transition: width 500ms cubic-bezier(0.445, 0.05, 0.55, 0.95);
     }
+
+    .browser-warning {
+      opacity: 1;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      transition: opacity 400ms linear;
+    }
+
+    .browser-warning h2 {
+      width: 440px;
+      line-height: 1.5em;
+      margin: 100px auto;
+      color: #666;
+      font-weight: 200;
+    }
+
+    .browser-warning.hidden {
+      opacity: 0;
+    }
   </style>
 </head>
 <body class="for-intro">
   <canvas class="viz"></canvas>
-  <!-- <div class="intro">
-    <div class="ios-instructions">
-      <h2>Unfortunately, I've had some issues getting this running on iOS. Please
-      take a look in a desktop browser. Preferably Chrome. 😬 <br><br> In the
-      meantime, here's a video (remember to turn on your sound!):</h2>
-      <video controls src="video/audiofabric.mov" type="video/quicktime" class="media-document iPhone video"></video>
-    </div>
-  </div> -->
+  <div class="browser-warning hidden">
+    <h2>Unfortunately, I've had some issues getting this running on mobile devices.
+    It is strongly recommended you view this on Desktop Chrome 😬 <!-- <br><br> In the
+    meantime, here's a video: --></h2>
+    <!-- <video controls src="video/audiofabric.mov" type="video/quicktime" class="media-document iPhone video"></video> -->
+  </div>
   <div class="title card">
     <h1 class="hidden">All the Buildings in Manhattan</h1>
     <div class="instructions">Drag & scroll to move around. Double-click to recenter the map.</div>
