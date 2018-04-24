@@ -33,12 +33,13 @@ module.exports = function createStateTransitioner (regl, settings) {
     stencil: false
   })
 
-  const stateIndexes = []
+  const stateIndexes = new Float32Array(settings.BUILDINGS_COUNT * 2)
 
   for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
     const buildingStateIndexX = (j * 4) % buildingStateTextureSize
     const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
-    stateIndexes.push([buildingStateIndexX / buildingStateTextureSize, buildingStateIndexY / buildingStateTextureSize])
+    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureSize
+    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureSize
   }
 
   const updateState = regl({
