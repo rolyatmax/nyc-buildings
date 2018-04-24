@@ -83,6 +83,10 @@ showBrowserWarning().then(function start() {
     onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
       loader.render(1)
       buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
+
+      const attrs = buffers.getAttributes()
+      renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
+
       setTimeout(() => {
         loader.remove()
         camera.updateSpeed(0.005, 0.02)
@@ -98,8 +102,6 @@ showBrowserWarning().then(function start() {
     },
     onStart(getLatest) {
       stateTransitioner = createStateTransitioner(regl, settings)
-      const attrs = buffers.getAttributes()
-      renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
 
       globalStateRender = regl({
         uniforms: {
@@ -143,7 +145,7 @@ showBrowserWarning().then(function start() {
             depth: 1
           })
           globalStateRender(() => {
-            renderBuildings({
+            if (renderBuildings) renderBuildings({
               primitive: settings.primitive,
               count: (curPositionsLoaded * countMultiplier) | 0
             })
