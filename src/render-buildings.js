@@ -24,26 +24,26 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       }
 
       void main() {
-        gl_PointSize = 1.5;
-        barycentric = bary;
+        // gl_PointSize = 1.5;
+        // barycentric = bary;
 
-        vec4 color = texture2D(buildingState, stateIndex);
+        // vec4 color = texture2D(buildingState, stateIndex);
 
         // EXPERIMENT! - set height offset in alpha channel
         // gl_Position = projection * view * vec4(position.xyz, 1);
-        zOffset = (color.a - 1.0);
-        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);
-
-        cameraDistance = gl_Position.z;
+        // zOffset = (color.a - 1.0);
+        // gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);
+        gl_Position = projection * view * vec4(position.xyz, 1.0);
+        // cameraDistance = gl_Position.z;
         
-        if (isLoading) {
-          fragColor = color;
-          return;
-        }
+        // if (isLoading) {
+        //   fragColor = color;
+        //   return;
+        // }
 
         // EXPERIMENT! - set height offset in alpha channel
         // fragColor = color;
-        fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);
+        // fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);
       }
     `,
     frag: glsl`
@@ -66,28 +66,29 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       }
 
       void main() {
-        if (isLoading) {
-          gl_FragColor = fragColor;
-          // gl_FragColor.a = 0.1;
-          return;
-        }
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        // if (isLoading) {
+        //   gl_FragColor = fragColor;
+        //   // gl_FragColor.a = 0.1;
+        //   return;
+        // }
 
-        float d = min(min(barycentric.x, barycentric.y), barycentric.z);
-        float positionAlong = max(barycentric.x, barycentric.y);
-        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
-          positionAlong = 1.0 - positionAlong;
-        }
-        if (thickness == 0.0) {
-          gl_FragColor = fragColor;
-          gl_FragColor.a *= opacity;
-        } else {
-          float computedThickness = thickness;
-          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
-          float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
-          float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
-          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);
-          gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));
-        }
+        // float d = min(min(barycentric.x, barycentric.y), barycentric.z);
+        // float positionAlong = max(barycentric.x, barycentric.y);
+        // if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
+        //   positionAlong = 1.0 - positionAlong;
+        // }
+        // if (thickness == 0.0) {
+        //   gl_FragColor = fragColor;
+        //   gl_FragColor.a *= opacity;
+        // } else {
+        //   float computedThickness = thickness;
+        //   computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
+        //   float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
+        //   float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
+        //   gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);
+        //   gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));
+        // }
       }
     `,
     uniforms: {
@@ -105,8 +106,11 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
       enable: true,
       face: 'back'
     },
+    depth: {
+      enable: true
+    },
     blend: {
-      enable: true,
+      enable: false,
       func: {
         srcRGB: 'src alpha',
         srcAlpha: 1,
