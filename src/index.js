@@ -78,6 +78,8 @@ showBrowserWarning().then(function start() {
 
   const loader = createLoaderRenderer(document.querySelector('.loader'))
 
+  let curPositionsLoaded = 0
+
   const renderFxaa = createFxaaRenderer(regl)
   loadData(regl, settings, {
     onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
@@ -86,15 +88,15 @@ showBrowserWarning().then(function start() {
 
       const attrs = buffers.getAttributes()
       renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
-
+      curPositionsLoaded = positions.length / 3
+      loaded = true
       setTimeout(() => {
         loader.remove()
         camera.updateSpeed(0.005, 0.02)
         camera.moveTo(cameraPositions.onFinishLoad)
+        stateTransitioner.setupMetaData(buildingIdxToMetadataList)
         setTimeout(() => {
           document.body.classList.remove('for-intro')
-          loaded = true
-          window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
           setTimeout(camera.startRoaming, 5000)
           if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'completed')
         }, 1500)
@@ -117,8 +119,6 @@ showBrowserWarning().then(function start() {
         camera.moveTo(cameraPositions.onStartLoad)
       }, 100)
 
-      let curPositionsLoaded = 0
-
       regl.frame((context) => {
         camera.tick()
 
@@ -128,13 +128,13 @@ showBrowserWarning().then(function start() {
 
         renderAutopilotButton()
 
-        if (!loaded && context.tick % 5 === 0) {
-          const latest = getLatest()
-          curPositionsLoaded = latest.positions.length / 3
-          stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-          buffers.update(latest, stateTransitioner.getStateIndexes())
-          loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
-        }
+        // if (!loaded && context.tick % 5 === 0) {
+        //   const latest = getLatest()
+        //   curPositionsLoaded = latest.positions.length / 3
+        //   stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
+        //   buffers.update(latest, stateTransitioner.getStateIndexes())
+        //   loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
+        // }
 
         // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
         const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
