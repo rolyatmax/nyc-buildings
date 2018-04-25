@@ -7,7 +7,7 @@ module.exports = function createBuffers(regl, settings) {
   )
 
   const attributesBuffer = regl.buffer({
-    usage: 'dynamic',
+    // usage: 'dynamic',
     type: 'float',
     length: get32BitSlotCount(settings.POSITIONS_LENGTH / 3) * 4
   })
