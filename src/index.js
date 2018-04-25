@@ -19,7 +19,10 @@ showBrowserWarning().then(function start() {
   window.addEventListener('resize', fit(canvas), false)
   const regl = createRegl({
     extensions: ['oes_standard_derivatives'],
-    canvas: canvas
+    canvas: canvas,
+    attributes: {
+      antialias: false
+    }
   })
 
   const getProjection = () => mat4.perspective(
