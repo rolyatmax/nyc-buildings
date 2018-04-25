@@ -19,6 +19,9 @@ showBrowserWarning().then(function start() {
   window.addEventListener('resize', fit(canvas), false)
   const regl = createRegl({
     extensions: ['oes_standard_derivatives'],
+    attributes: {
+      antialias: false
+    },
     canvas: canvas
   })
 
@@ -75,6 +78,7 @@ showBrowserWarning().then(function start() {
 
   let globalStateRender, stateTransitioner, renderBuildings
   let loaded = false
+  let curPositionsLoaded = 0
 
   const loader = createLoaderRenderer(document.querySelector('.loader'))
 
@@ -83,6 +87,13 @@ showBrowserWarning().then(function start() {
     onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
       loader.render(1)
       buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
+      curPositionsLoaded = positions.length / 3
+      
+      // stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
+      buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
+      const attrs = buffers.getAttributes()
+      renderBuildings = createBuildingsRenderer(regl, positions, barys, randoms, stateTransitioner.getStateIndexes(), settings)
+      // loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
       setTimeout(() => {
         loader.remove()
         camera.updateSpeed(0.005, 0.02)
@@ -98,14 +109,12 @@ showBrowserWarning().then(function start() {
     },
     onStart(getLatest) {
       stateTransitioner = createStateTransitioner(regl, settings)
-      const attrs = buffers.getAttributes()
-      renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
 
       globalStateRender = regl({
         uniforms: {
           projection: getProjection,
           view: () => camera.getMatrix(),
-          buildingState: stateTransitioner.getStateTexture,
+          // buildingState: stateTransitioner.getStateTexture,
           isLoading: () => !loaded
         }
       })
@@ -115,40 +124,40 @@ showBrowserWarning().then(function start() {
         camera.moveTo(cameraPositions.onStartLoad)
       }, 100)
 
-      let curPositionsLoaded = 0
 
       regl.frame((context) => {
         camera.tick()
 
         context.isLoading = !loaded
 
-        stateTransitioner.tick(context, settings)
+        // stateTransitioner.tick(context, settings)
 
         renderAutopilotButton()
 
         if (!loaded && context.tick % 5 === 0) {
-          const latest = getLatest()
-          curPositionsLoaded = latest.positions.length / 3
-          stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-          buffers.update(latest, stateTransitioner.getStateIndexes())
-          loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
+          // console.log('ticking!');
+          // const latest = getLatest()
+          // curPositionsLoaded = latest.positions.length / 3
+          // stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
+          // buffers.update(latest, stateTransitioner.getStateIndexes())
+          // loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
         }
 
         // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
         const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
 
-        renderFxaa(context, () => {
+        // renderFxaa(context, () => {
           regl.clear({
             color: [1, 1, 1, 1],
             depth: 1
           })
           globalStateRender(() => {
-            renderBuildings({
+            if (renderBuildings) renderBuildings({
               primitive: settings.primitive,
               count: (curPositionsLoaded * countMultiplier) | 0
             })
           })
-        })
+        // })
       })
     }
   })

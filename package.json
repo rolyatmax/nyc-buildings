@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:rolyatmax/nyc-buildings.git"
-},
+  },
   "scripts": {
     "start": "budo src/index.js:bundle.js --live --open",
     "build": "browserify src/index.js > bundle.js",
