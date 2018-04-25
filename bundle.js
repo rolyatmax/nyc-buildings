@@ -16443,7 +16443,7 @@ module.exports = function createBuffers(regl, settings) {
   )
 
   const attributesBuffer = regl.buffer({
-    usage: 'dynamic',
+    // usage: 'dynamic',
     type: 'float',
     length: get32BitSlotCount(settings.POSITIONS_LENGTH / 3) * 4
   })
@@ -16474,19 +16474,19 @@ module.exports = function createBuffers(regl, settings) {
   }
 
   let lastI = 0
-  function update({ positions, barys, randoms, buildings }, buildingIdxToStateIndexes) {
+  function update({ positions, barys, randoms, buildings, verticesProcessed }, buildingIdxToStateIndexes) {
+    if (verticesProcessed - 1 === lastI) return
     const stride = get32BitSlotCount(1)
-    const newData = new Float32Array((positions.length / 3 - lastI) * stride)
+    const newData = new Float32Array((verticesProcessed - lastI) * stride)
     const subDataOffset = lastI * stride * 4
     let k = 0
-    for (let i = lastI; i < positions.length / 3; i++) {
+    for (let i = lastI; i < verticesProcessed; i++) {
       newData[k++] = positions[i * 3 + 0]
       newData[k++] = positions[i * 3 + 1]
       newData[k++] = positions[i * 3 + 2]
       newData[k++] = randoms[i]
-      const stateIdx = buildingIdxToStateIndexes[buildings[i]]
-      newData[k++] = stateIdx[0]
-      newData[k++] = stateIdx[1]
+      newData[k++] = buildingIdxToStateIndexes[buildings[i] * 2]
+      newData[k++] = buildingIdxToStateIndexes[buildings[i] * 2 + 1]
       newData[k++] = barys[i * 3 + 0]
       newData[k++] = barys[i * 3 + 1]
       newData[k++] = barys[i * 3 + 2]
@@ -16855,12 +16855,13 @@ module.exports = function createStateTransitioner (regl, settings) {
     stencil: false
   })
 
-  const stateIndexes = []
+  const stateIndexes = new Float32Array(settings.BUILDINGS_COUNT * 2)
 
   for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
     const buildingStateIndexX = (j * 4) % buildingStateTextureSize
     const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
-    stateIndexes.push([buildingStateIndexX / buildingStateTextureSize, buildingStateIndexY / buildingStateTextureSize])
+    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureSize
+    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureSize
   }
 
   const updateState = regl({
@@ -17101,7 +17102,10 @@ showBrowserWarning().then(function start() {
   window.addEventListener('resize', fit(canvas), false)
   const regl = createRegl({
     extensions: ['oes_standard_derivatives'],
-    canvas: canvas
+    canvas: canvas,
+    attributes: {
+      antialias: false
+    }
   })
 
   const getProjection = () => mat4.perspective(
@@ -17162,9 +17166,9 @@ showBrowserWarning().then(function start() {
 
   const renderFxaa = createFxaaRenderer(regl)
   loadData(regl, settings, {
-    onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
+    onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList, verticesProcessed }) {
       loader.render(1)
-      buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
+      buffers.update({ positions, barys, randoms, buildings, verticesProcessed }, stateTransitioner.getStateIndexes())
       setTimeout(() => {
         loader.remove()
         camera.updateSpeed(0.005, 0.02)
@@ -17210,10 +17214,10 @@ showBrowserWarning().then(function start() {
 
         if (!loaded && context.tick % 5 === 0) {
           const latest = getLatest()
-          curPositionsLoaded = latest.positions.length / 3
+          curPositionsLoaded = latest.verticesProcessed
           stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
           buffers.update(latest, stateTransitioner.getStateIndexes())
-          loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
+          loader.render(latest.verticesProcessed / (settings.POSITIONS_LENGTH / 3))
         }
 
         // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
@@ -17292,7 +17296,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
           throw new Error('expired version of data found in cache')
         }
         if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'hit')
-        return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+        return { positions, barys, buildings, randoms, buildingIdxToMetadataList, verticesProcessed: positions.length / 3 }
       })
   }
 
@@ -17305,13 +17309,13 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
       .then(res => res.text())
       .then(parseBinToBBLMapCSV)
 
-    const mungeData = createDataMunger({
+    const mungeData = createDataMunger(settings, {
       onStart: onStart,
       onDone: function onDoneWrapper(data) {
-        localForage.setItem('positions', new Float32Array(data.positions))
-        localForage.setItem('barys', new Float32Array(data.barys))
-        localForage.setItem('buildings', new Float32Array(data.buildings))
-        localForage.setItem('randoms', new Float32Array(data.randoms))
+        localForage.setItem('positions', data.positions)
+        localForage.setItem('barys', data.barys)
+        localForage.setItem('buildings', data.buildings)
+        localForage.setItem('randoms', data.randoms)
         localForage.setItem('buildingIdxToMetadataList', data.buildingIdxToMetadataList)
         localForage.setItem('DATA_VERSION', window.DATA_VERSION)
         onDone(data)
@@ -17387,16 +17391,20 @@ function splitOnCSVComma(line) {
 const BUILDING_DELIMITER = [255, 255, 255, 255]
 const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
 
-module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
-  let positions = []
-  // let normals = []
-  let buildings = []
-  let barys = []
-  let randoms = []
-  let buildingIdxToMetadataList = []
+module.exports = function createDataMunger(settings, { onStart, onUpdate, onDone }) {
+  const vertexCount = settings.POSITIONS_LENGTH / 3
+
+  const positions = new Float32Array(vertexCount * 3)
+  // const normals = new Float32Array(vertexCount * 3)
+  const buildings = new Float32Array(vertexCount)
+  const barys = new Float32Array(vertexCount * 3)
+  const randoms = new Float32Array(vertexCount)
+  const buildingIdxToMetadataList = []
+
+  let verticesProcessed = 0
 
   function getLatest () {
-    return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+    return { positions, barys, buildings, randoms, buildingIdxToMetadataList, verticesProcessed }
   }
 
   return function mungeData([meshRes, metadata, binToBBLMap]) {
@@ -17617,23 +17625,36 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
           return
         }
 
-        positions.push(
-          vertices[v1Idx * 3 + 0],
-          vertices[v1Idx * 3 + 1],
-          vertices[v1Idx * 3 + 2],
-          vertices[v2Idx * 3 + 0],
-          vertices[v2Idx * 3 + 1],
-          vertices[v2Idx * 3 + 2],
-          vertices[v3Idx * 3 + 0],
-          vertices[v3Idx * 3 + 1],
-          vertices[v3Idx * 3 + 2]
-        )
+        const n = verticesProcessed / 3
+        verticesProcessed += 3
 
-        barys.push(0, 0, 1, 0, 1, 0, 1, 0, 0)
+        positions[n * 9 + 0] = vertices[v1Idx * 3 + 0]
+        positions[n * 9 + 1] = vertices[v1Idx * 3 + 1]
+        positions[n * 9 + 2] = vertices[v1Idx * 3 + 2]
+        positions[n * 9 + 3] = vertices[v2Idx * 3 + 0]
+        positions[n * 9 + 4] = vertices[v2Idx * 3 + 1]
+        positions[n * 9 + 5] = vertices[v2Idx * 3 + 2]
+        positions[n * 9 + 6] = vertices[v3Idx * 3 + 0]
+        positions[n * 9 + 7] = vertices[v3Idx * 3 + 1]
+        positions[n * 9 + 8] = vertices[v3Idx * 3 + 2]
 
-        buildings.push(buildingCount, buildingCount, buildingCount)
+        barys[n * 9 + 0] = 0
+        barys[n * 9 + 1] = 0
+        barys[n * 9 + 2] = 1
+        barys[n * 9 + 3] = 0
+        barys[n * 9 + 4] = 1
+        barys[n * 9 + 5] = 0
+        barys[n * 9 + 6] = 1
+        barys[n * 9 + 7] = 0
+        barys[n * 9 + 8] = 0
 
-        randoms.push(buildingEntropyValue, buildingEntropyValue, buildingEntropyValue)
+        buildings[n * 3 + 0] = buildingCount
+        buildings[n * 3 + 1] = buildingCount
+        buildings[n * 3 + 2] = buildingCount
+
+        randoms[n * 3 + 0] = buildingEntropyValue
+        randoms[n * 3 + 1] = buildingEntropyValue
+        randoms[n * 3 + 2] = buildingEntropyValue
 
         // getNormal(
         //   vertices[v1Idx * 3 + 0],
