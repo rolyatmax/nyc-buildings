@@ -3,16 +3,20 @@
 const BUILDING_DELIMITER = [255, 255, 255, 255]
 const VERTEX_LIST_DELIMITER = [254, 255, 255, 255]
 
-module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
-  let positions = []
-  // let normals = []
-  let buildings = []
-  let barys = []
-  let randoms = []
-  let buildingIdxToMetadataList = []
+module.exports = function createDataMunger(settings, { onStart, onUpdate, onDone }) {
+  const vertexCount = settings.POSITIONS_LENGTH / 3
+
+  const positions = new Float32Array(vertexCount * 3)
+  // const normals = new Float32Array(vertexCount * 3)
+  const buildings = new Float32Array(vertexCount)
+  const barys = new Float32Array(vertexCount * 3)
+  const randoms = new Float32Array(vertexCount)
+  const buildingIdxToMetadataList = []
+
+  let verticesProcessed = 0
 
   function getLatest () {
-    return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+    return { positions, barys, buildings, randoms, buildingIdxToMetadataList, verticesProcessed }
   }
 
   return function mungeData([meshRes, metadata, binToBBLMap]) {
@@ -233,23 +237,36 @@ module.exports = function createDataMunger({ onStart, onUpdate, onDone }) {
           return
         }
 
-        positions.push(
-          vertices[v1Idx * 3 + 0],
-          vertices[v1Idx * 3 + 1],
-          vertices[v1Idx * 3 + 2],
-          vertices[v2Idx * 3 + 0],
-          vertices[v2Idx * 3 + 1],
-          vertices[v2Idx * 3 + 2],
-          vertices[v3Idx * 3 + 0],
-          vertices[v3Idx * 3 + 1],
-          vertices[v3Idx * 3 + 2]
-        )
+        const n = verticesProcessed / 3
+        verticesProcessed += 3
 
-        barys.push(0, 0, 1, 0, 1, 0, 1, 0, 0)
+        positions[n * 9 + 0] = vertices[v1Idx * 3 + 0]
+        positions[n * 9 + 1] = vertices[v1Idx * 3 + 1]
+        positions[n * 9 + 2] = vertices[v1Idx * 3 + 2]
+        positions[n * 9 + 3] = vertices[v2Idx * 3 + 0]
+        positions[n * 9 + 4] = vertices[v2Idx * 3 + 1]
+        positions[n * 9 + 5] = vertices[v2Idx * 3 + 2]
+        positions[n * 9 + 6] = vertices[v3Idx * 3 + 0]
+        positions[n * 9 + 7] = vertices[v3Idx * 3 + 1]
+        positions[n * 9 + 8] = vertices[v3Idx * 3 + 2]
 
-        buildings.push(buildingCount, buildingCount, buildingCount)
+        barys[n * 9 + 0] = 0
+        barys[n * 9 + 1] = 0
+        barys[n * 9 + 2] = 1
+        barys[n * 9 + 3] = 0
+        barys[n * 9 + 4] = 1
+        barys[n * 9 + 5] = 0
+        barys[n * 9 + 6] = 1
+        barys[n * 9 + 7] = 0
+        barys[n * 9 + 8] = 0
 
-        randoms.push(buildingEntropyValue, buildingEntropyValue, buildingEntropyValue)
+        buildings[n * 3 + 0] = buildingCount
+        buildings[n * 3 + 1] = buildingCount
+        buildings[n * 3 + 2] = buildingCount
+
+        randoms[n * 3 + 0] = buildingEntropyValue
+        randoms[n * 3 + 1] = buildingEntropyValue
+        randoms[n * 3 + 2] = buildingEntropyValue
 
         // getNormal(
         //   vertices[v1Idx * 3 + 0],

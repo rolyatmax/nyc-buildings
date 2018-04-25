@@ -38,12 +38,13 @@ module.exports = function createBuffers(regl, settings) {
   }
 
   let lastI = 0
-  function update({ positions, barys, randoms, buildings }, buildingIdxToStateIndexes) {
+  function update({ positions, barys, randoms, buildings, verticesProcessed }, buildingIdxToStateIndexes) {
+    if (verticesProcessed - 1 === lastI) return
     const stride = get32BitSlotCount(1)
-    const newData = new Float32Array((positions.length / 3 - lastI) * stride)
+    const newData = new Float32Array((verticesProcessed - lastI) * stride)
     const subDataOffset = lastI * stride * 4
     let k = 0
-    for (let i = lastI; i < positions.length / 3; i++) {
+    for (let i = lastI; i < verticesProcessed; i++) {
       newData[k++] = positions[i * 3 + 0]
       newData[k++] = positions[i * 3 + 1]
       newData[k++] = positions[i * 3 + 2]

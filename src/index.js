@@ -80,9 +80,9 @@ showBrowserWarning().then(function start() {
 
   const renderFxaa = createFxaaRenderer(regl)
   loadData(regl, settings, {
-    onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList }) {
+    onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList, verticesProcessed }) {
       loader.render(1)
-      buffers.update({ positions, barys, randoms, buildings }, stateTransitioner.getStateIndexes())
+      buffers.update({ positions, barys, randoms, buildings, verticesProcessed }, stateTransitioner.getStateIndexes())
       setTimeout(() => {
         loader.remove()
         camera.updateSpeed(0.005, 0.02)
@@ -128,10 +128,10 @@ showBrowserWarning().then(function start() {
 
         if (!loaded && context.tick % 5 === 0) {
           const latest = getLatest()
-          curPositionsLoaded = latest.positions.length / 3
+          curPositionsLoaded = latest.verticesProcessed
           stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
           buffers.update(latest, stateTransitioner.getStateIndexes())
-          loader.render(latest.buildingIdxToMetadataList.length / settings.BUILDINGS_COUNT)
+          loader.render(latest.verticesProcessed / (settings.POSITIONS_LENGTH / 3))
         }
 
         // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half

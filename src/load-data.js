@@ -36,7 +36,7 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
           throw new Error('expired version of data found in cache')
         }
         if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'cache', 'hit')
-        return { positions, barys, buildings, randoms, buildingIdxToMetadataList }
+        return { positions, barys, buildings, randoms, buildingIdxToMetadataList, verticesProcessed: positions.length / 3 }
       })
   }
 
@@ -49,13 +49,13 @@ module.exports = function loadData(regl, settings, { onDone, onStart }) {
       .then(res => res.text())
       .then(parseBinToBBLMapCSV)
 
-    const mungeData = createDataMunger({
+    const mungeData = createDataMunger(settings, {
       onStart: onStart,
       onDone: function onDoneWrapper(data) {
-        localForage.setItem('positions', new Float32Array(data.positions))
-        localForage.setItem('barys', new Float32Array(data.barys))
-        localForage.setItem('buildings', new Float32Array(data.buildings))
-        localForage.setItem('randoms', new Float32Array(data.randoms))
+        localForage.setItem('positions', data.positions)
+        localForage.setItem('barys', data.barys)
+        localForage.setItem('buildings', data.buildings)
+        localForage.setItem('randoms', data.randoms)
         localForage.setItem('buildingIdxToMetadataList', data.buildingIdxToMetadataList)
         localForage.setItem('DATA_VERSION', window.DATA_VERSION)
         onDone(data)
