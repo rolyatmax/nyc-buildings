@@ -1,8 +1,6 @@
-const glsl = require('glslify')
-
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
   const renderBuildings = regl({
-    vert: glsl`
+    vert: `
       attribute vec3 position;
       attribute vec3 bary;
       attribute float random;
@@ -46,7 +44,7 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
         fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);
       }
     `,
-    frag: glsl`
+    frag: `
       #extension GL_OES_standard_derivatives : enable
 
       precision highp float;

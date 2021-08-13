@@ -16,7 +16,6 @@ module.exports = function createFxaaRenderer(regl) {
 
       uniform sampler2D iChannel0;
       uniform vec2 resolution;
-      uniform bool enabled;
       
       void main() {
         vec2 uv = vec2(gl_FragCoord.xy / resolution.xy);

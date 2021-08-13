@@ -1,40 +1,35 @@
 require('ric')
+const canvasSketch = require('canvas-sketch')
 const createRegl = require('regl')
-const fit = require('canvas-fit')
 const mat4 = require('gl-mat4')
 const { GUI } = require('dat-gui')
 const createStateTransitioner = require('./create-state-transitioner')
-const createButtons = require('./create-buttons')
 const createRoamingCamera = require('./create-roaming-camera')
-const createFxaaRenderer = require('./render-fxaa')
 const createBuildingsRenderer = require('./render-buildings')
-const createLoaderRenderer = require('./render-loader')
 const loadData = require('./load-data')
 const createBuffers = require('./create-buffers')
 const cameraPositions = require('./camera-positions')
-const showBrowserWarning = require('./browser-warning')
 
-showBrowserWarning().then(function start() {
-  const canvas = document.querySelector('.viz')
-  window.addEventListener('resize', fit(canvas), false)
-  const regl = createRegl({
-    extensions: ['oes_standard_derivatives'],
-    canvas: canvas,
-    attributes: {
-      antialias: false
-    }
-  })
+const WIDTH = 5550
+const HEIGHT = 3750
+
+window.DATA_VERSION = '1.1'
+window.IS_DEV = !document.location.origin.includes('tbaldw.in')
+
+function sketch ({ gl, play }) {
+  gl.getExtension('oes_standard_derivatives')
+  const regl = createRegl({ gl })
 
   const getProjection = () => mat4.perspective(
     [],
     Math.PI / 4,
-    window.innerWidth / window.innerHeight,
+    WIDTH / HEIGHT,
     0.01,
     1000
   )
 
   const camera = createRoamingCamera(
-    canvas,
+    gl.canvas,
     cameraPositions.onStart.center,
     cameraPositions.onStart.eye,
     getProjection,
@@ -54,52 +49,25 @@ showBrowserWarning().then(function start() {
     animationSpread: 3000,
     loadingAnimationSpeed: 0.005,
     colorCodeField: 'height',
-    primitive: 'triangles',
-    showFewerBuildings: false
+    primitive: 'triangles'
   }
-
-  const createSettingEvent = (name) => () => { if (!window.IS_DEV) window.ga('send', 'event', 'Settings', 'click', name) }
 
   const gui = new GUI()
   gui.closed = true
-  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001).onFinishChange(createSettingEvent('wireframeThickness'))
-  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1).onFinishChange(createSettingEvent('wireframeDistanceThreshold'))
-  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points']).onFinishChange(createSettingEvent('primitive'))
-  gui.add(settings, 'opacity', 0, 1).step(0.01).onFinishChange(createSettingEvent('opacity'))
-  gui.add(settings, 'showFewerBuildings').name('Fewer Buildings').onFinishChange(createSettingEvent('showFewerBuildings'))
-  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera').onFinishChange(createSettingEvent('moveCamera'))
-
-  gui.domElement.querySelector('.close-button').addEventListener('click', createSettingEvent('open'))
-
-  const renderButtons = createButtons(document.querySelector('.button-group'), settings)
-  renderButtons(settings)
+  gui.add(settings, 'wireframeThickness', 0, 0.1).step(0.001)
+  gui.add(settings, 'wireframeDistanceThreshold', 1, 20).step(1)
+  gui.add(settings, 'primitive', ['triangles', 'triangle strip', 'lines', 'line strip', 'points'])
+  gui.add(settings, 'opacity', 0, 1).step(0.01)
+  gui.add({ roam: camera.startRoaming }, 'roam').name('Move Camera')
 
   const buffers = createBuffers(regl, settings)
 
   let globalStateRender, stateTransitioner, renderBuildings
   let loaded = false
 
-  const loader = createLoaderRenderer(document.querySelector('.loader'))
-
-  const renderFxaa = createFxaaRenderer(regl)
   loadData(regl, settings, {
+    onStart() {},
     onDone({ positions, barys, randoms, buildings, buildingIdxToMetadataList, verticesProcessed }) {
-      loader.render(1)
-      buffers.update({ positions, barys, randoms, buildings, verticesProcessed }, stateTransitioner.getStateIndexes())
-      setTimeout(() => {
-        loader.remove()
-        camera.updateSpeed(0.005, 0.02)
-        camera.moveTo(cameraPositions.onFinishLoad)
-        setTimeout(() => {
-          document.body.classList.remove('for-intro')
-          loaded = true
-          window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
-          setTimeout(camera.startRoaming, 5000)
-          if (!window.IS_DEV) window.ga('send', 'event', 'Load', 'completed')
-        }, 1500)
-      }, 200)
-    },
-    onStart(getLatest) {
       stateTransitioner = createStateTransitioner(regl, settings)
       const attrs = buffers.getAttributes()
       renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
@@ -109,67 +77,55 @@ showBrowserWarning().then(function start() {
           projection: getProjection,
           view: () => camera.getMatrix(),
           buildingState: stateTransitioner.getStateTexture,
-          isLoading: () => !loaded
+          isLoading: false
         }
       })
 
-      setTimeout(() => {
-        camera.updateSpeed(0.0015, 0.0015)
-        camera.moveTo(cameraPositions.onStartLoad)
-      }, 100)
+      loaded = true
 
-      let curPositionsLoaded = 0
+      buffers.update({ positions, barys, randoms, buildings, verticesProcessed }, stateTransitioner.getStateIndexes())
+      stateTransitioner.setupMetaData(buildingIdxToMetadataList)
+      // window.requestIdleCallback(() => stateTransitioner.setupMetaData(buildingIdxToMetadataList))
+      play()
+    }
+  })
 
-      regl.frame((context) => {
-        camera.tick()
+  const context = {}
+  return ({ time, frame }) => {
+    if (!loaded) return
+    regl.poll()
+    regl.clear({
+      color: [1, 1, 1, 1],
+      depth: 1
+    })
+    camera.tick()
 
-        context.isLoading = !loaded
+    context.time = time
+    context.frame = frame
+    context.isLoading = false
+    context.viewportWidth = WIDTH
+    context.viewportHeight = HEIGHT
 
-        stateTransitioner.tick(context, settings)
+    stateTransitioner.tick(context, settings)
 
-        renderAutopilotButton()
-
-        if (!loaded && context.tick % 5 === 0) {
-          const latest = getLatest()
-          curPositionsLoaded = latest.verticesProcessed
-          stateTransitioner.updateLoadingState(latest.buildingIdxToMetadataList)
-          buffers.update(latest, stateTransitioner.getStateIndexes())
-          loader.render(latest.verticesProcessed / (settings.POSITIONS_LENGTH / 3))
-        }
-
-        // this 0.495 makes sure Inwood doesn't show up when cutting the buildings count in half
-        const countMultiplier = settings.showFewerBuildings ? 0.495 : 1
-
-        renderFxaa(context, () => {
-          regl.clear({
-            color: [1, 1, 1, 1],
-            depth: 1
-          })
-          globalStateRender(() => {
-            renderBuildings({
-              primitive: settings.primitive,
-              count: (curPositionsLoaded * countMultiplier) | 0
-            })
-          })
-        })
+    regl.clear({
+      color: [1, 1, 1, 0],
+      depth: 1
+    })
+    globalStateRender(() => {
+      renderBuildings({
+        primitive: settings.primitive,
+        count: settings.POSITIONS_LENGTH / 3
       })
-    }
-  })
-
-  const autopilotButton = document.querySelector('.autopilot-button')
-  autopilotButton.addEventListener('click', () => {
-    camera.startRoaming()
-    if (!window.IS_DEV) window.ga('send', 'event', 'Autopilot Button', 'click')
-  })
-
-  function renderAutopilotButton() {
-    if (camera.isRoaming()) {
-      autopilotButton.classList.add('hidden')
-    } else {
-      autopilotButton.classList.remove('hidden')
-    }
+    })
   }
+}
 
-  document.querySelector('a.github-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'github') })
-  document.querySelector('a.twitter-link').addEventListener('click', () => { if (!window.IS_DEV) window.ga('send', 'event', 'Links', 'click', 'twitter') })
+canvasSketch(sketch, {
+  animate: true,
+  dimensions: [WIDTH, HEIGHT],
+  context: 'webgl',
+  flush: true, // false?
+  playing: false,
+  attributes: { antialias: true }
 })

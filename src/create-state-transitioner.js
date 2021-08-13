@@ -1,4 +1,3 @@
-const glsl = require('glslify')
 const { scaleSequential } = require('d3-scale')
 const { interpolateCool, interpolateMagma } = require('d3-scale-chromatic')
 const { rgb } = require('d3-color')
@@ -45,7 +44,7 @@ module.exports = function createStateTransitioner (regl, settings) {
   const updateState = regl({
     framebuffer: () => nextbuildingStateTexture,
 
-    vert: glsl`
+    vert: `
       precision mediump float;
       attribute vec2 position;
 
@@ -58,7 +57,7 @@ module.exports = function createStateTransitioner (regl, settings) {
         gl_Position = vec4(position, 0, 1);
       }
     `,
-    frag: glsl`
+    frag: `
       precision mediump float;
 
       uniform sampler2D curBuildingStateTexture;
@@ -302,10 +301,15 @@ const fieldToColorMappers = {
   },
   height: (function() {
     const domain = [0, 1.6] // [0 - 1800 feet]
-    const scale = scaleSequential(interpolateCool).domain(domain)
+    const range = [0.25, 0.75]
+    const domainDelta = domain[1] - domain[0]
+    const rangeDelta = range[1] - range[0]
+    // const scale = scaleSequential(interpolateCool).domain(domain)
     return (val) => {
-      const color = rgb(scale(val))
-      return [color.r, color.g, color.b].map(v => v / 255)
+      // const color = rgb(scale(val))
+      // return [color.r, color.g, color.b].map(v => v / 255)
+      const grayscale = (val - domain[0]) / domainDelta * rangeDelta + range[0]
+      return [grayscale, grayscale, grayscale]
     }
   })(),
   built: (function() {
