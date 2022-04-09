@@ -506,7 +506,13 @@
   </div>
   <script>
     window.DATA_VERSION = '1.1'
-    window.IS_DEV = !document.location.origin.includes('tbaldw.in')
+    window.IS_DEV = !(
+      document.location.origin.includes('tbaldw.in') ||
+      document.location.origin.includes('taylorbaldw.in') ||
+      document.location.origin.includes('taylor.cool') ||
+      document.location.origin.includes('taylorbaldwin.org') ||
+      document.location.origin.includes('taylorb.me')
+    )
   </script>
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

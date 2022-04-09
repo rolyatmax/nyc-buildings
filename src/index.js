@@ -42,7 +42,7 @@ showBrowserWarning().then(function start() {
   )
 
   const settings = {
-    objectStorageURL: 'https://tbaldwin.nyc3.digitaloceanspaces.com/',
+    objectStorageURL: 'https://nyc-buildings.s3.amazonaws.com/',
     // hardcoding so we can set up stateTransitioner early and show loading progress
     BUILDINGS_COUNT: 45707,
     // hardcoding so we can set up stateIndexes array early
