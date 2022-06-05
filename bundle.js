@@ -17613,8 +17613,9 @@ module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
   let lastChangeTime
 
-  const buildingStateTextureSize = Math.ceil(Math.sqrt(settings.BUILDINGS_COUNT)) * 4
-  const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
+  const buildingStateTextureHeight = Math.ceil(Math.sqrt(settings.BUILDINGS_COUNT))
+  const buildingStateTextureWidth = buildingStateTextureHeight * 4
+  const buildingStateTextureLength = buildingStateTextureWidth * buildingStateTextureHeight
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
     initialBuildingState[i * 4] = 0.2 // r
@@ -17623,14 +17624,14 @@ module.exports = function createStateTransitioner (regl, settings) {
     initialBuildingState[i * 4 + 3] = 0 // a
   }
 
-  let prevBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
-  let curBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
-  let nextbuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
+  let prevBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
+  let curBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
+  let nextbuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
 
   const buildingMetaDataState = new Uint8Array(buildingStateTextureLength * 4)
   const buildingMetaDataTexture = regl.texture({
     data: buildingMetaDataState,
-    shape: [buildingStateTextureSize, buildingStateTextureSize, 4]
+    shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4]
   })
   const buildingMetaDataBuffer = regl.framebuffer({
     color: buildingMetaDataTexture,
@@ -17641,17 +17642,17 @@ module.exports = function createStateTransitioner (regl, settings) {
   const stateIndexes = new Float32Array(settings.BUILDINGS_COUNT * 2)
 
   for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
-    const buildingStateIndexX = (j * 4) % buildingStateTextureSize
-    const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
-    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureSize
-    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureSize
+    const buildingStateIndexX = (j % buildingStateTextureHeight) * 4
+    const buildingStateIndexY = j / buildingStateTextureHeight | 0
+    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureWidth
+    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureHeight
   }
 
   const updateState = regl({
     framebuffer: () => nextbuildingStateTexture,
 
-    vert: glsl(["\n      precision mediump float;\n#define GLSLIFY 1\n\n      attribute vec2 position;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        // map bottom left -1,-1 (normalized device coords) to 0,0 (particle texture index)\n        // and 1,1 (ndc) to 1,1 (texture)\n        buildingStateIndex = 0.5 * (1.0 + position);\n        gl_Position = vec4(position, 0, 1);\n      }\n    ",""]),
-    frag: glsl(["\n      precision mediump float;\n#define GLSLIFY 1\n\n\n      uniform sampler2D curBuildingStateTexture;\n      uniform sampler2D prevBuildingStateTexture;\n      uniform sampler2D buildingMetaDataBuffer;\n\n      uniform float texelSize;\n      uniform float animationSpeed;\n      uniform float animationSpread;\n      uniform float time;\n      uniform float lastChangeTime;\n\n      uniform bool showBuilt;\n      uniform bool showClass;\n      uniform bool showHeight;\n\n      uniform bool showOneOrTwoFamily;\n      uniform bool showCondo;\n      uniform bool showCoop;\n      uniform bool showElevator;\n      uniform bool showWalkupAndMixedUse;\n      uniform bool showHotel;\n\n      uniform bool isLoading;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        vec4 curColor = texture2D(curBuildingStateTexture, buildingStateIndex);\n        // vec4 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex);\n\n        vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);\n        float distFromCenter = firstSlot.a;\n\n        vec4 destColor = vec4(0.01, 0.01, 0.01, 0);\n        if (isLoading) {\n          if (firstSlot.r == 1.0) {\n            destColor = vec4(0.52, 0.52, 0.55, 0.5);\n          } else {\n            destColor = curColor;\n          }\n          vec4 nextColor = curColor + (destColor - curColor) * animationSpeed;\n          gl_FragColor = nextColor;\n          return;\n        }\n\n        if (showBuilt) {\n          destColor = vec4(firstSlot.rgb, 1);\n        }\n        if (showHeight) {\n          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);\n        }\n        if (showClass) {\n          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0);\n          float buildingClassID = thirdSlot.a * 255.0;\n          if (\n            (buildingClassID == 0.0 && showOneOrTwoFamily) ||\n            (buildingClassID == 1.0 && showCondo) ||\n            (buildingClassID == 2.0 && showCoop) ||\n            (buildingClassID == 3.0 && showElevator) ||\n            (buildingClassID == 4.0 && showWalkupAndMixedUse) ||\n            (buildingClassID == 5.0 && showHotel)\n          ) {\n            destColor = vec4(thirdSlot.rgb, 1);\n          } else {\n            destColor = vec4(0);\n          }\n        }\n\n        // TEMP EXPERIMENT: Let's store height in the alpha channel just to see if it works well\n        if (destColor.rgb != vec3(0)) {\n          destColor.a = 1.0;\n        }\n\n        if (destColor.rgb == vec3(0)) {\n          destColor = vec4(0.4, 0.4, 0.4, 0.3);\n          // EXPERIMENT! - set height offset in alpha channel\n          destColor.a = 0.0;\n        }\n\n        // POTENTIAL OPTIMISATION: if curColor is within range of destColor, \n        // just skip the calculations and set to destColor\n\n        // distFromCenter is a float between 0->1\n        // transition over 2 seconds\n        float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;\n        float rate = (time > start) ? 1.0 : 0.0;\n        vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;\n\n        gl_FragColor = nextColor;\n      }\n    ",""]),
+    vert: glsl(["\n      precision highp float;\n#define GLSLIFY 1\n\n      attribute vec2 position;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        // map bottom left -1,-1 (normalized device coords) to 0,0 (particle texture index)\n        // and 1,1 (ndc) to 1,1 (texture)\n        buildingStateIndex = 0.5 * (1.0 + position);\n        gl_Position = vec4(position, 0, 1);\n      }\n    ",""]),
+    frag: glsl(["\n      precision highp float;\n#define GLSLIFY 1\n\n\n      uniform sampler2D curBuildingStateTexture;\n      uniform sampler2D prevBuildingStateTexture;\n      uniform sampler2D buildingMetaDataBuffer;\n\n      uniform vec2 texelSize;\n      uniform float animationSpeed;\n      uniform float animationSpread;\n      uniform float time;\n      uniform float lastChangeTime;\n\n      uniform bool showBuilt;\n      uniform bool showClass;\n      uniform bool showHeight;\n\n      uniform bool showOneOrTwoFamily;\n      uniform bool showCondo;\n      uniform bool showCoop;\n      uniform bool showElevator;\n      uniform bool showWalkupAndMixedUse;\n      uniform bool showHotel;\n\n      uniform bool isLoading;\n\n      varying vec2 buildingStateIndex;\n\n      void main() {\n        vec4 curColor = texture2D(curBuildingStateTexture, buildingStateIndex);\n        // vec4 prevColor = texture2D(prevBuildingStateTexture, buildingStateIndex);\n\n        vec4 firstSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex);\n        float distFromCenter = firstSlot.a;\n\n        vec4 destColor = vec4(0.01, 0.01, 0.01, 0);\n        if (isLoading) {\n          if (firstSlot.r == 1.0) {\n            destColor = vec4(0.52, 0.52, 0.55, 0.5);\n          } else {\n            destColor = curColor;\n          }\n          vec4 nextColor = curColor + (destColor - curColor) * animationSpeed;\n          gl_FragColor = nextColor;\n          return;\n        }\n\n        if (showBuilt) {\n          destColor = vec4(firstSlot.rgb, 1);\n        }\n        if (showHeight) {\n          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize.x, 0) * 3.0).rgb, 1);\n        }\n        if (showClass) {\n          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize.x, 0) * 2.0);\n          float buildingClassID = thirdSlot.a * 255.0;\n          if (\n            (buildingClassID == 0.0 && showOneOrTwoFamily) ||\n            (buildingClassID == 1.0 && showCondo) ||\n            (buildingClassID == 2.0 && showCoop) ||\n            (buildingClassID == 3.0 && showElevator) ||\n            (buildingClassID == 4.0 && showWalkupAndMixedUse) ||\n            (buildingClassID == 5.0 && showHotel)\n          ) {\n            destColor = vec4(thirdSlot.rgb, 1);\n          } else {\n            destColor = vec4(0);\n          }\n        }\n\n        // TEMP EXPERIMENT: Let's store height in the alpha channel just to see if it works well\n        if (destColor.rgb != vec3(0)) {\n          destColor.a = 1.0;\n        }\n\n        if (destColor.rgb == vec3(0)) {\n          destColor = vec4(0.4, 0.4, 0.4, 0.3);\n          // EXPERIMENT! - set height offset in alpha channel\n          destColor.a = 0.0;\n        }\n\n        // POTENTIAL OPTIMISATION: if curColor is within range of destColor, \n        // just skip the calculations and set to destColor\n\n        // distFromCenter is a float between 0->1\n        // transition over 2 seconds\n        float start = pow(distFromCenter, 1.5) * animationSpread + lastChangeTime;\n        float rate = (time > start) ? 1.0 : 0.0;\n        vec4 nextColor = curColor + (destColor - curColor) * animationSpeed * rate;\n\n        gl_FragColor = nextColor;\n      }\n    ",""]),
 
     attributes: {
       position: [
@@ -17666,7 +17667,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       curBuildingStateTexture: () => curBuildingStateTexture,
       prevBuildingStateTexture: () => prevBuildingStateTexture,
       buildingMetaDataBuffer: () => buildingMetaDataBuffer,
-      texelSize: 1 / buildingStateTextureSize,
+      texelSize: [1 / buildingStateTextureWidth, 1 / buildingStateTextureHeight],
       lastChangeTime: () => lastChangeTime * 1000,
       time: ({ time }) => time * 1000,
       animationSpeed: regl.prop('animationSpeed'),
@@ -17695,7 +17696,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       buildingMetaDataState[j * 16] = 255
       lastIdxLoaded = j
     }
-    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4] })
   }
 
   function setupMetaData(buildingIdxToMetadataList) {
@@ -17736,7 +17737,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       buildingMetaDataState[j * 16 + 13] = color[1] * 255
       buildingMetaDataState[j * 16 + 14] = color[2] * 255
     }
-    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4] })
     buildingMetaDataBuffer({
       color: buildingMetaDataTexture,
       depth: false,
@@ -17776,11 +17777,11 @@ module.exports = function createStateTransitioner (regl, settings) {
     updateLoadingState
   }
 
-  function createStateBuffer (initialState, textureSize) {
+  function createStateBuffer (initialState, textureWidth, textureHeight) {
     return regl.framebuffer({
       color: regl.texture({
         data: initialState,
-        shape: [textureSize, textureSize, 4]
+        shape: [textureWidth, textureHeight, 4]
       }),
       depth: false,
       stencil: false
@@ -17805,7 +17806,7 @@ const fieldToColorMappers = {
     const domain = [0, 1.6] // [0 - 1800 feet]
     const scale = scaleSequential(interpolateCool).domain(domain)
     return (val) => {
-      const color = rgb(scale(val))
+      const color = rgb(scale(val)).brighter(0.2)
       return [color.r, color.g, color.b].map(v => v / 255)
     }
   })(),
@@ -17914,8 +17915,8 @@ showBrowserWarning().then(function start() {
     // hardcoding so we can set up stateIndexes array early
     POSITIONS_LENGTH: 32895792,
     wireframeThickness: 0.003,
-    wireframeDistanceThreshold: 9,
-    opacity: 0.65,
+    wireframeDistanceThreshold: 20,
+    opacity: 1,
     animationSpeed: 0.1,
     animationSpread: 3000,
     loadingAnimationSpeed: 0.005,
@@ -17942,7 +17943,7 @@ showBrowserWarning().then(function start() {
 
   const buffers = createBuffers(regl, settings)
 
-  let globalStateRender, stateTransitioner, renderBuildings
+  let stateTransitioner, renderBuildings
   let loaded = false
 
   const loader = createLoaderRenderer(document.querySelector('.loader'))
@@ -17969,15 +17970,6 @@ showBrowserWarning().then(function start() {
       stateTransitioner = createStateTransitioner(regl, settings)
       const attrs = buffers.getAttributes()
       renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
-
-      globalStateRender = regl({
-        uniforms: {
-          projection: getProjection,
-          view: () => camera.getMatrix(),
-          buildingState: stateTransitioner.getStateTexture,
-          isLoading: () => !loaded
-        }
-      })
 
       setTimeout(() => {
         camera.updateSpeed(0.0015, 0.0015)
@@ -18011,11 +18003,13 @@ showBrowserWarning().then(function start() {
             color: [1, 1, 1, 1],
             depth: 1
           })
-          globalStateRender(() => {
-            renderBuildings({
-              primitive: settings.primitive,
-              count: (curPositionsLoaded * countMultiplier) | 0
-            })
+          renderBuildings({
+            primitive: settings.primitive,
+            count: (curPositionsLoaded * countMultiplier) | 0,
+            projection: getProjection(),
+            view: camera.getMatrix(),
+            buildingState: stateTransitioner.getStateTexture(),
+            isLoading: !loaded
           })
         })
       })
@@ -18483,12 +18477,16 @@ const glsl = require('glslify')
 
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
   const renderBuildings = regl({
-    vert: glsl(["#define GLSLIFY 1\n\n      attribute vec3 position;\n      attribute vec3 bary;\n      attribute float random;\n      attribute vec2 stateIndex;\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform sampler2D buildingState;\n      uniform mat4 projection;\n      uniform mat4 view;\n\n      uniform bool isLoading;\n\n      float rand(vec2 co){\n        return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\n      }\n\n      void main() {\n        gl_PointSize = 1.5;\n        barycentric = bary;\n\n        vec4 color = texture2D(buildingState, stateIndex);\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // gl_Position = projection * view * vec4(position.xyz, 1);\n        zOffset = (color.a - 1.0);\n        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);\n\n        cameraDistance = gl_Position.z;\n        \n        if (isLoading) {\n          fragColor = color;\n          return;\n        }\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // fragColor = color;\n        fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);\n      }\n    ",""]),
-    frag: glsl(["\n      #extension GL_OES_standard_derivatives : enable\n\n      precision highp float;\n#define GLSLIFY 1\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform float wireframeDistanceThreshold;\n      uniform float thickness;\n      uniform float opacity;\n      uniform bool isLoading;\n\n      float aastep (float threshold, float dist) {\n        float afwidth = fwidth(dist) * 0.5;\n        return smoothstep(threshold - afwidth, threshold + afwidth, dist);\n      }\n\n      void main() {\n        if (isLoading) {\n          gl_FragColor = fragColor;\n          // gl_FragColor.a = 0.1;\n          return;\n        }\n\n        float d = min(min(barycentric.x, barycentric.y), barycentric.z);\n        float positionAlong = max(barycentric.x, barycentric.y);\n        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {\n          positionAlong = 1.0 - positionAlong;\n        }\n        if (thickness == 0.0) {\n          gl_FragColor = fragColor;\n          gl_FragColor.a *= opacity;\n        } else {\n          float computedThickness = thickness;\n          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));\n          float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;\n          float edge = (1.0 - aastep(computedThickness, d)) * multiplier;\n          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);\n          gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));\n        }\n      }\n    ",""]),
+    vert: glsl(["\n      precision highp float;\n#define GLSLIFY 1\n\n\n      attribute vec3 position;\n      attribute vec3 bary;\n      attribute float random;\n      attribute vec2 stateIndex;\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform sampler2D buildingState;\n      uniform mat4 projection;\n      uniform mat4 view;\n\n      uniform bool isLoading;\n\n      float rand(vec2 co){\n        return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\n      }\n\n      void main() {\n        gl_PointSize = 1.5;\n        barycentric = bary;\n\n        vec4 color = texture2D(buildingState, stateIndex);\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // gl_Position = projection * view * vec4(position.xyz, 1);\n        zOffset = (color.a - 1.0);\n        gl_Position = projection * view * vec4(position.xy, position.z + zOffset * 0.05, 1);\n\n        cameraDistance = gl_Position.z;\n        \n        if (isLoading) {\n          fragColor = color;\n          return;\n        }\n\n        // EXPERIMENT! - set height offset in alpha channel\n        // fragColor = color;\n        fragColor = vec4(color.rgb, 1.0 + zOffset + 0.05);\n      }\n    ",""]),
+    frag: glsl(["\n      #extension GL_OES_standard_derivatives : enable\n\n      precision highp float;\n#define GLSLIFY 1\n\n      varying vec4 fragColor;\n      varying vec3 barycentric;\n      varying float cameraDistance;\n      varying float zOffset;\n\n      uniform float wireframeDistanceThreshold;\n      uniform float thickness;\n      uniform float opacity;\n      uniform bool isLoading;\n\n      float aastep (float threshold, float dist) {\n        float afwidth = fwidth(dist) * 0.5;\n        return smoothstep(threshold - afwidth, threshold + afwidth, dist);\n      }\n\n      void main() {\n        if (isLoading) {\n          gl_FragColor = fragColor;\n          // gl_FragColor.a = 0.1;\n          return;\n        }\n\n        if (thickness == 0.0) {\n          gl_FragColor = fragColor;\n          gl_FragColor.a = opacity;\n          return;\n        }\n\n        float d = min(min(barycentric.x, barycentric.y), barycentric.z);\n        float positionAlong = max(barycentric.x, barycentric.y);\n        if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {\n          positionAlong = 1.0 - positionAlong;\n        }\n        float computedThickness = thickness;\n        computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));\n        float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;\n        float edge = (1.0 - aastep(computedThickness, d)) * multiplier;\n        gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);\n        gl_FragColor.a *= mix(opacity, 1.0, clamp(pow(edge, 1.5), 0.0, 1.0));\n      }\n    ",""]),
     uniforms: {
       wireframeDistanceThreshold: () => settings.wireframeDistanceThreshold,
       thickness: () => settings.primitive.includes('triangle') ? settings.wireframeThickness : 0,
-      opacity: () => settings.opacity
+      opacity: () => settings.opacity,
+      projection: regl.prop('projection'),
+      view: regl.prop('view'),
+      buildingState: regl.prop('buildingState'),
+      isLoading: regl.prop('isLoading')
     },
     attributes: {
       position: positionsBuffer,
@@ -18517,10 +18515,14 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
     primitive: regl.prop('primitive') // 'triangles'
   })
 
-  return function render({ primitive, count }) {
+  return function render({ primitive, count, projection, view, buildingState, isLoading }) {
     renderBuildings({
       primitive,
-      count
+      count,
+      projection,
+      view,
+      buildingState,
+      isLoading
     })
   }
 }
