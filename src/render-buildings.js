@@ -3,6 +3,8 @@ const glsl = require('glslify')
 module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBuffer, randomsBuffer, stateIndexesBuffer, settings) {
   const renderBuildings = regl({
     vert: glsl`
+      precision highp float;
+
       attribute vec3 position;
       attribute vec3 bary;
       attribute float random;
@@ -72,28 +74,33 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
           return;
         }
 
+        if (thickness == 0.0) {
+          gl_FragColor = fragColor;
+          gl_FragColor.a = opacity;
+          return;
+        }
+
         float d = min(min(barycentric.x, barycentric.y), barycentric.z);
         float positionAlong = max(barycentric.x, barycentric.y);
         if (barycentric.y < barycentric.x && barycentric.y < barycentric.z) {
           positionAlong = 1.0 - positionAlong;
         }
-        if (thickness == 0.0) {
-          gl_FragColor = fragColor;
-          gl_FragColor.a *= opacity;
-        } else {
-          float computedThickness = thickness;
-          computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
-          float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
-          float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
-          gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);
-          gl_FragColor.a *= mix(opacity, 1.0, pow(edge, 1.5));
-        }
+        float computedThickness = thickness;
+        computedThickness *= mix(0.4, 1.0, (1.0 - sin(positionAlong * 3.1415)));
+        float multiplier = 1.0 - clamp(cameraDistance, 0.0, wireframeDistanceThreshold) / wireframeDistanceThreshold;
+        float edge = (1.0 - aastep(computedThickness, d)) * multiplier;
+        gl_FragColor = mix(fragColor, vec4(0.18, 0.18, 0.18, 1.0 + zOffset * 0.9), edge);
+        gl_FragColor.a *= mix(opacity, 1.0, clamp(pow(edge, 1.5), 0.0, 1.0));
       }
     `,
     uniforms: {
       wireframeDistanceThreshold: () => settings.wireframeDistanceThreshold,
       thickness: () => settings.primitive.includes('triangle') ? settings.wireframeThickness : 0,
-      opacity: () => settings.opacity
+      opacity: () => settings.opacity,
+      projection: regl.prop('projection'),
+      view: regl.prop('view'),
+      buildingState: regl.prop('buildingState'),
+      isLoading: regl.prop('isLoading')
     },
     attributes: {
       position: positionsBuffer,
@@ -122,10 +129,14 @@ module.exports = function createBuildingsRenderer(regl, positionsBuffer, barysBu
     primitive: regl.prop('primitive') // 'triangles'
   })
 
-  return function render({ primitive, count }) {
+  return function render({ primitive, count, projection, view, buildingState, isLoading }) {
     renderBuildings({
       primitive,
-      count
+      count,
+      projection,
+      view,
+      buildingState,
+      isLoading
     })
   }
 }

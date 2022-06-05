@@ -48,8 +48,8 @@ showBrowserWarning().then(function start() {
     // hardcoding so we can set up stateIndexes array early
     POSITIONS_LENGTH: 32895792,
     wireframeThickness: 0.003,
-    wireframeDistanceThreshold: 9,
-    opacity: 0.65,
+    wireframeDistanceThreshold: 20,
+    opacity: 1,
     animationSpeed: 0.1,
     animationSpread: 3000,
     loadingAnimationSpeed: 0.005,
@@ -76,7 +76,7 @@ showBrowserWarning().then(function start() {
 
   const buffers = createBuffers(regl, settings)
 
-  let globalStateRender, stateTransitioner, renderBuildings
+  let stateTransitioner, renderBuildings
   let loaded = false
 
   const loader = createLoaderRenderer(document.querySelector('.loader'))
@@ -103,15 +103,6 @@ showBrowserWarning().then(function start() {
       stateTransitioner = createStateTransitioner(regl, settings)
       const attrs = buffers.getAttributes()
       renderBuildings = createBuildingsRenderer(regl, attrs.positions, attrs.barys, attrs.randoms, attrs.stateIndexes, settings)
-
-      globalStateRender = regl({
-        uniforms: {
-          projection: getProjection,
-          view: () => camera.getMatrix(),
-          buildingState: stateTransitioner.getStateTexture,
-          isLoading: () => !loaded
-        }
-      })
 
       setTimeout(() => {
         camera.updateSpeed(0.0015, 0.0015)
@@ -145,11 +136,13 @@ showBrowserWarning().then(function start() {
             color: [1, 1, 1, 1],
             depth: 1
           })
-          globalStateRender(() => {
-            renderBuildings({
-              primitive: settings.primitive,
-              count: (curPositionsLoaded * countMultiplier) | 0
-            })
+          renderBuildings({
+            primitive: settings.primitive,
+            count: (curPositionsLoaded * countMultiplier) | 0,
+            projection: getProjection(),
+            view: camera.getMatrix(),
+            buildingState: stateTransitioner.getStateTexture(),
+            isLoading: !loaded
           })
         })
       })

@@ -8,8 +8,9 @@ module.exports = function createStateTransitioner (regl, settings) {
   let lastColorCodeField = settings.colorCodeField
   let lastChangeTime
 
-  const buildingStateTextureSize = Math.ceil(Math.sqrt(settings.BUILDINGS_COUNT)) * 4
-  const buildingStateTextureLength = buildingStateTextureSize * buildingStateTextureSize
+  const buildingStateTextureHeight = Math.ceil(Math.sqrt(settings.BUILDINGS_COUNT))
+  const buildingStateTextureWidth = buildingStateTextureHeight * 4
+  const buildingStateTextureLength = buildingStateTextureWidth * buildingStateTextureHeight
   const initialBuildingState = new Uint8Array(buildingStateTextureLength * 4)
   for (let i = 0; i < buildingStateTextureLength; ++i) {
     initialBuildingState[i * 4] = 0.2 // r
@@ -18,14 +19,14 @@ module.exports = function createStateTransitioner (regl, settings) {
     initialBuildingState[i * 4 + 3] = 0 // a
   }
 
-  let prevBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
-  let curBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
-  let nextbuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureSize)
+  let prevBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
+  let curBuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
+  let nextbuildingStateTexture = createStateBuffer(initialBuildingState, buildingStateTextureWidth, buildingStateTextureHeight)
 
   const buildingMetaDataState = new Uint8Array(buildingStateTextureLength * 4)
   const buildingMetaDataTexture = regl.texture({
     data: buildingMetaDataState,
-    shape: [buildingStateTextureSize, buildingStateTextureSize, 4]
+    shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4]
   })
   const buildingMetaDataBuffer = regl.framebuffer({
     color: buildingMetaDataTexture,
@@ -36,17 +37,17 @@ module.exports = function createStateTransitioner (regl, settings) {
   const stateIndexes = new Float32Array(settings.BUILDINGS_COUNT * 2)
 
   for (let j = 0; j < settings.BUILDINGS_COUNT; j++) {
-    const buildingStateIndexX = (j * 4) % buildingStateTextureSize
-    const buildingStateIndexY = (j * 4) / buildingStateTextureSize | 0
-    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureSize
-    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureSize
+    const buildingStateIndexX = (j % buildingStateTextureHeight) * 4
+    const buildingStateIndexY = j / buildingStateTextureHeight | 0
+    stateIndexes[j * 2] = buildingStateIndexX / buildingStateTextureWidth
+    stateIndexes[j * 2 + 1] = buildingStateIndexY / buildingStateTextureHeight
   }
 
   const updateState = regl({
     framebuffer: () => nextbuildingStateTexture,
 
     vert: glsl`
-      precision mediump float;
+      precision highp float;
       attribute vec2 position;
 
       varying vec2 buildingStateIndex;
@@ -59,13 +60,13 @@ module.exports = function createStateTransitioner (regl, settings) {
       }
     `,
     frag: glsl`
-      precision mediump float;
+      precision highp float;
 
       uniform sampler2D curBuildingStateTexture;
       uniform sampler2D prevBuildingStateTexture;
       uniform sampler2D buildingMetaDataBuffer;
 
-      uniform float texelSize;
+      uniform vec2 texelSize;
       uniform float animationSpeed;
       uniform float animationSpread;
       uniform float time;
@@ -109,10 +110,10 @@ module.exports = function createStateTransitioner (regl, settings) {
           destColor = vec4(firstSlot.rgb, 1);
         }
         if (showHeight) {
-          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 3.0).rgb, 1);
+          destColor = vec4(texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize.x, 0) * 3.0).rgb, 1);
         }
         if (showClass) {
-          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize, 0) * 2.0);
+          vec4 thirdSlot = texture2D(buildingMetaDataBuffer, buildingStateIndex + vec2(texelSize.x, 0) * 2.0);
           float buildingClassID = thirdSlot.a * 255.0;
           if (
             (buildingClassID == 0.0 && showOneOrTwoFamily) ||
@@ -165,7 +166,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       curBuildingStateTexture: () => curBuildingStateTexture,
       prevBuildingStateTexture: () => prevBuildingStateTexture,
       buildingMetaDataBuffer: () => buildingMetaDataBuffer,
-      texelSize: 1 / buildingStateTextureSize,
+      texelSize: [1 / buildingStateTextureWidth, 1 / buildingStateTextureHeight],
       lastChangeTime: () => lastChangeTime * 1000,
       time: ({ time }) => time * 1000,
       animationSpeed: regl.prop('animationSpeed'),
@@ -194,7 +195,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       buildingMetaDataState[j * 16] = 255
       lastIdxLoaded = j
     }
-    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4] })
   }
 
   function setupMetaData(buildingIdxToMetadataList) {
@@ -235,7 +236,7 @@ module.exports = function createStateTransitioner (regl, settings) {
       buildingMetaDataState[j * 16 + 13] = color[1] * 255
       buildingMetaDataState[j * 16 + 14] = color[2] * 255
     }
-    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureSize, buildingStateTextureSize, 4] })
+    buildingMetaDataTexture({ data: buildingMetaDataState, shape: [buildingStateTextureWidth, buildingStateTextureHeight, 4] })
     buildingMetaDataBuffer({
       color: buildingMetaDataTexture,
       depth: false,
@@ -275,11 +276,11 @@ module.exports = function createStateTransitioner (regl, settings) {
     updateLoadingState
   }
 
-  function createStateBuffer (initialState, textureSize) {
+  function createStateBuffer (initialState, textureWidth, textureHeight) {
     return regl.framebuffer({
       color: regl.texture({
         data: initialState,
-        shape: [textureSize, textureSize, 4]
+        shape: [textureWidth, textureHeight, 4]
       }),
       depth: false,
       stencil: false
@@ -304,7 +305,7 @@ const fieldToColorMappers = {
     const domain = [0, 1.6] // [0 - 1800 feet]
     const scale = scaleSequential(interpolateCool).domain(domain)
     return (val) => {
-      const color = rgb(scale(val))
+      const color = rgb(scale(val)).brighter(0.2)
       return [color.r, color.g, color.b].map(v => v / 255)
     }
   })(),
