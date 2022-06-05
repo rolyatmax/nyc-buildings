@@ -34,7 +34,7 @@
     "glslify": "^6.1.1",
     "libtess": "^1.2.2",
     "localforage": "^1.7.1",
-    "minimist": "^1.2.0",
+    "minimist": "^1.2.6",
     "perspective-camera": "^2.0.1",
     "ray-plane-intersection": "^1.0.0",
     "regl": "^1.3.1",
