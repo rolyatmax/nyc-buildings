@@ -1,6 +1,0 @@
-{
-  "extends": ["standard", "standard-jsx"],
-  "rules": {
-    "space-before-function-paren": "off"
-  }
-}
