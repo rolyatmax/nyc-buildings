@@ -1,2 +1,4 @@
 DA_WISE_GMLs
 *.linearrings
+target/
+processed/
