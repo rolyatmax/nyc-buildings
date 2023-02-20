@@ -5,10 +5,10 @@ Client-side code for decoding the following data format in Uint8 chunks.
 
 Usage:
 
-    const streamer = new Streamer()
-    streamer.onChunk(uint8Array) // call on every chunk (whether loading from a Socket or a BodyReader stream, etc)
-    const result: Result = streamer.getCurrentResult()
-    streamer.done // this will be true when all data expected from the header is done processing
+    const decoder = new StreamDecoder()
+    decoder.onChunk(uint8Array) // call on every chunk (whether loading from a Socket or a BodyReader stream, etc)
+    const result: Result = decoder.getCurrentResult()
+    decoder.done // this will be true when all data expected from the header is done processing
 
 Data format (v0.1.0):
 
@@ -51,7 +51,7 @@ const BARYS = [
   new Float32Array([0, 0, 1])
 ]
 
-export default class Streamer {
+export default class StreamDecoder {
   private result: Result | null = null
   private leftoverChunk: Uint8Array | null = null
   public done: Boolean = false
