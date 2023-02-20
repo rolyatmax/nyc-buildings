@@ -1,9 +1,21 @@
 # All the Buildings in New York
 
-To process data:
+First:
 
 ```sh
 $ cd lib/process-buildings
 $ cargo build --release
-$ target/release/process-buildings [FILES] > output.bin
+$ cp target/release/process-buildings ../../
+```
+
+To process data:
+
+```sh
+$ process-buildings [FILES] > output.bin
+```
+
+Or to read the header of a processed file:
+
+```sh
+$ process-buildings --info [FILE]
 ```
