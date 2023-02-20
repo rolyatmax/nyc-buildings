@@ -8,6 +8,7 @@ Usage:
     const streamer = new Streamer()
     streamer.onChunk(uint8Array) // call on every chunk (whether loading from a Socket or a BodyReader stream, etc)
     const result: Result = streamer.getCurrentResult()
+    streamer.done // this will be true when all data expected from the header is done processing
 
 Data format (v0.1.0):
 
@@ -53,6 +54,7 @@ const BARYS = [
 export default class Streamer {
   private result: Result | null = null
   private leftoverChunk: Uint8Array | null = null
+  public done: Boolean = false
   public onChunk (chunk: Uint8Array): void {
     chunk = this.mergeWithLeftoverChunk(chunk)
 
@@ -67,7 +69,7 @@ export default class Streamer {
     }
 
     while (true) {
-      if (chunk.length === 0) return
+      if (chunk.length === 0) break
       const dataview = new DataView(chunk.buffer, chunk.byteOffset)
       const buildingByteLength = dataview.getUint32(0)
       // see if this chunk contains the data for the entire building (minus 4 bytes for the
@@ -75,10 +77,15 @@ export default class Streamer {
       // if not, then stick all of it in the leftoverChunk and try again on the next tick
       if (chunk.length < buildingByteLength + 4) {
         this.leftoverChunk = chunk.slice() // TODO: DO I NEED TO COPY THIS?
-        return
+        break
       }
       this.processBuilding(new Uint8Array(chunk.buffer, chunk.byteOffset + 4, buildingByteLength))
       chunk = new Uint8Array(chunk.buffer, chunk.byteOffset + 4 + buildingByteLength)
+    }
+
+    if (this.result && this.result.buildingsProcessed === this.result.buildingCount) {
+      this.done = true
+      if (chunk.length !== 0) throw new Error('Decoding data failed: processed all buildings with data left over')
     }
   }
 
