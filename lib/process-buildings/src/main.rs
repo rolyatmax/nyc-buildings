@@ -1,4 +1,6 @@
 // ./process-buildings models/DA13_3D_Buildings.gml > output.bin
+// OR
+// ./process-buildings --info models/output.bin
 
 use bytebuffer::ByteBuffer;
 use clap::Parser;
@@ -7,14 +9,20 @@ use nom::bytes::complete::{tag, take_until};
 use nom::IResult;
 use std::collections::{HashMap, HashSet};
 use std::env::current_dir;
-use std::fs::{canonicalize, read_to_string};
-use std::io::{stdout, StdoutLock, Write};
+use std::fs::{canonicalize, read_to_string, File};
+use std::io::{stdout, Read, StdoutLock, Write};
+use std::path::PathBuf;
 
 const MAX_U16: u32 = u32::pow(2, 16) - 1;
+const VERSION: [u8; 3] = [0, 1, 0];
 
 /*
 Output data format:
----- HEADER ---- (THIS SHOULD BE ADDED IN ANOTHER SCRIPT. THIS SCRIPT ONLY OUTPUTS THE BODY.)
+---- HEADER ----
+version major - u8
+version minor - u8
+version patch - u8
+empty - u8
 triangleCount - uint32
 buildingCount - uint32
 ----- BODY ----
@@ -34,8 +42,11 @@ repeat with next building
 
 #[derive(Parser)]
 struct Opts {
+    #[clap(long)]
+    info: bool,
+
     #[clap()]
-    file: String,
+    files: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -235,50 +246,124 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
         .expect("Failed to write building data to stdout");
 }
 
-fn main() {
-    let Opts { file } = Opts::parse();
-
-    let cwd = current_dir().unwrap();
-    let cwd = cwd.as_path();
-    let filepath = cwd.join(file.clone());
-    let filepath = canonicalize(filepath.clone()).expect("File {file} not found.");
-
-    let contents = read_to_string(filepath).expect("Was unable to read file");
-
-    let mut left = contents.as_str();
+fn parse_gml_to_stdout(filepaths: Vec<PathBuf>) -> () {
+    let mut buildings: Vec<Building> = vec![];
     let mut vertex_count = 0;
     let mut triangle_count = 0;
-    let mut building_count = 0;
 
-    let tag_str = if contents.contains("core:cityObjectMember") {
-        "core:cityObjectMember"
-    } else {
-        "cityObjectMember"
-    };
-    let tag_str = tag_str.to_string();
+    for filepath in filepaths {
+        let contents = read_to_string(&filepath).expect("Was unable to read file");
 
-    loop {
-        let building_str = match get_tag_contents(&left, tag_str.clone()) {
-            Ok((leftover, building_str)) => {
-                left = leftover;
-                building_str
-            }
-            _ => {
-                break;
-            }
+        let mut left = contents.as_str();
+
+        let tag_str = if contents.contains("core:cityObjectMember") {
+            "core:cityObjectMember"
+        } else {
+            "cityObjectMember"
         };
 
-        let (_, building) = parse_building(building_str).expect("Failed to parse building");
+        loop {
+            let building_str = match get_tag_contents(&left, tag_str.to_string()) {
+                Ok((leftover, building_str)) => {
+                    left = leftover;
+                    building_str
+                }
+                _ => {
+                    break;
+                }
+            };
 
-        building_count += 1;
-        vertex_count += building.vertices.len() / 3;
-        triangle_count += building.triangles.len() / 3;
+            let (_, building) = parse_building(building_str).expect("Failed to parse building");
 
+            vertex_count += &building.vertices.len() / 3;
+            triangle_count += &building.triangles.len() / 3;
+            buildings.push(building);
+        }
+    }
+
+    let buildings_count = buildings.len();
+
+    /*
+       ---- HEADER ----
+       version major - u8
+       version minor - u8
+       version patch - u8
+       empty - u8
+       triangleCount - uint32
+       buildingCount - uint32
+    */
+    let mut header = ByteBuffer::new();
+    header.write_bytes(&VERSION);
+    header.write_u8(0);
+    header.write_u32(triangle_count as u32);
+    header.write_u32(buildings_count as u32);
+    {
+        let mut stdout = stdout().lock();
+        stdout
+            .write_all(header.as_bytes())
+            .expect("Failed to write header to stdout");
+    }
+
+    // Then, write all the buildings
+    for building in buildings {
         write_building(stdout().lock(), building);
     }
 
     eprintln!("YAY! ALL DONE! LET'S SEE HOW MANY BUILDINGS WE FOUND:");
-    eprintln!("building count: {:?}", building_count);
+    eprintln!("building count: {:?}", buildings_count);
     eprintln!("vertex count: {:?}", vertex_count);
     eprintln!("triangle count: {:?}", triangle_count);
+}
+
+fn get_info(filepath: &PathBuf) -> () {
+    let mut file = File::open(&filepath).expect("Was unable to open file");
+
+    let mut contents: [u8; 12] = [0; 12];
+    file.read_exact(&mut contents)
+        .expect("Was unable to read file");
+    let mut header = ByteBuffer::from_bytes(&contents);
+    let version_major = header.read_u8().unwrap();
+    let version_minor = header.read_u8().unwrap();
+    let version_patch = header.read_u8().unwrap();
+    let empty = header.read_u8().unwrap();
+
+    assert!(
+        empty == 0,
+        "Header does not have expected values - may not be the right format"
+    );
+
+    let triangle_count = header.read_u32().expect("Unable to read triangle count");
+    let buildings_count = header.read_u32().expect("Unable to read buildings count");
+
+    eprintln!(
+        "file version: {}.{}.{}",
+        version_major, version_minor, version_patch
+    );
+    eprintln!("triangle count: {}", triangle_count);
+    eprintln!("building count: {:?}", buildings_count);
+}
+
+fn main() {
+    let Opts { info, files } = Opts::parse();
+
+    let cwd = current_dir().unwrap();
+    let cwd = cwd.as_path();
+
+    let filepaths: Vec<PathBuf> = files
+        .iter()
+        .map(|f| {
+            let filepath = cwd.clone().join(f);
+            canonicalize(&filepath).expect("File {file} not found.")
+        })
+        .collect();
+
+    if info {
+        assert!(
+            filepaths.len() == 1,
+            "Can only get info for one file at a time."
+        );
+        get_info(&filepaths[0]);
+    } else {
+        parse_gml_to_stdout(filepaths);
+    }
 }
