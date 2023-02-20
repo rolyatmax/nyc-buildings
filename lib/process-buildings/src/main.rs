@@ -35,6 +35,7 @@ vertexB - float32x3
 triangleCount - uint32
 triA - uint8x3 (or uint16x3 if vertexCount > 255)
 triB - uint8x3 (or uint16x3 if vertexCount > 255)
+possible padding here to make align with 4 bytes
 ...
 repeat with next building
 
@@ -231,12 +232,21 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
         }
     }
 
+    let triangle_list_in_bytes = triangle_idx_bytelength * 3 * triangle_count;
+    let padding = (4 - (triangle_list_in_bytes % 4)) % 4;
+    let mut n = padding;
+    while n > 0 {
+        buffer.write_u8(0);
+        n -= 1;
+    }
+
     let building_byte_length =
-        4 + 4 + vertex_count * 12 + 4 + triangle_idx_bytelength * 3 * triangle_count;
+        4 + 4 + vertex_count * 12 + 4 + triangle_idx_bytelength * 3 * triangle_count + padding;
     assert!(
         building_byte_length as usize == buffer.len(),
         "expected building byte length and buffer length to be the same"
     );
+    assert!(buffer.len() % 4 == 0, "Expected building bytelength to be divisible by 4");
 
     stdout
         .write_all(&building_byte_length.to_be_bytes())

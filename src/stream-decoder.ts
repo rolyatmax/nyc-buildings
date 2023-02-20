@@ -29,6 +29,7 @@ vertexB - float32x3
 triangleCount - uint32
 triA - uint8x3 (or uint16x3 if vertexCount > 255)
 triB - uint8x3 (or uint16x3 if vertexCount > 255)
+Possible padding here to make this list align to 4bytes
 ...
 repeat with next building
 
@@ -116,8 +117,10 @@ export default class StreamDecoder {
     const TypedArray = vertexCount > 255 ? Uint16Array : Uint8Array
     const triangles = new TypedArray(chunk.buffer, chunk.byteOffset + i, triangleCount * 3)
 
-    // the chunk should have been completely consumed after the list of triangles
-    if (chunk.byteLength !== i + triangles.byteLength) {
+    const triangleListInBytes = TypedArray.BYTES_PER_ELEMENT * triangleCount * 3
+    const expectedPadding = (4 - triangleListInBytes % 4) % 4
+    // the chunk should have been completely consumed after the list of triangles + expectedPadding
+    if (chunk.byteLength !== i + triangles.byteLength + expectedPadding) {
       throw new Error('Decoding data failed: building data has leftover bytes after processing')
     }
 

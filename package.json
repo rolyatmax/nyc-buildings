@@ -10,25 +10,31 @@
     "url": "https://github.com/rolyatmax/nyc-buildings"
   },
   "scripts": {
-    "build": "browserify src/index.js > bundle.js"
+    "dev": "vite"
   },
   "devDependencies": {
-    "@types/earcut": "^2.1.1",
-    "@types/minimist": "^1.2.2",
     "@types/node": "^18.13.0",
-    "earcut": "^2.2.4",
+    "@webgpu/types": "^0.1.27",
     "eslint": "^8.34.0",
-    "minimist": "^1.2.8",
     "ts-standard": "^12.0.2",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "vite": "^4.1.3"
+  },
+  "dependencies": {
+    "3d-view-controls": "^2.2.2",
+    "gl-matrix": "^3.4.3"
   },
   "eslintConfig": {
     "extends": "standard-with-typescript",
+    "ignorePatterns": ["vite.config.ts"],
     "parserOptions": {
       "project": "./tsconfig.json"
     },
     "rules": {
-      "@typescript-eslint/consistent-type-definitions": ["warn", "type"],
+      "@typescript-eslint/consistent-type-definitions": [
+        "warn",
+        "type"
+      ],
       "@typescript-eslint/strict-boolean-expressions": "off"
     }
   }
