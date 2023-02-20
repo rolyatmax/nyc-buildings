@@ -1,24 +1,16 @@
-
 /*
 
-This data format:
+-----------------------------------------------------------
+NOTE: THIS CODE IS ONLY TO BE USED AS REFERENCE
+-----------------------------------------------------------
 
-buildingId - uint32
-vertexA - float32, float32, float32
-vertexB - float32, float32, float32
-...
-vertexDelimeter - 254, 255, 255, 255
-vertexIdxByteSize - uint8
-triA - uint8, uint8, uint8 (or) uint16, uint16, uint16 (depending on vertexIdxByteSize)
-triB - uint8, uint8, uint8 (or) uint16, uint16, uint16 (depending on vertexIdxByteSize)
-...
-buildingDelimeter - 255, 255, 255, 255
-repeat with next building
+Data format (v0.1.0):
 
-----------------------------------------
-
-Ideal data format:
 ---- HEADER ----
+version major - u8
+version minor - u8
+version patch - u8
+empty - u8
 triangleCount - uint32
 buildingCount - uint32
 -----
