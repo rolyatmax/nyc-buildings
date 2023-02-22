@@ -216,19 +216,19 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
     );
 
     let mut buffer = ByteBuffer::new();
-    buffer.write_u32(building.bin);
-    buffer.write_u32(vertex_count);
+    buffer.write_bytes(&u32::to_le_bytes(building.bin));
+    buffer.write_bytes(&u32::to_le_bytes(vertex_count));
     for f in building.vertices {
-        buffer.write_f32(f);
+        buffer.write_bytes(&f32::to_le_bytes(f));
     }
-    buffer.write_u32(triangle_count);
+    buffer.write_bytes(&u32::to_le_bytes(triangle_count));
     if vertex_count <= 255 {
         for t in building.triangles {
             buffer.write_u8(t as u8);
         }
     } else {
         for t in building.triangles {
-            buffer.write_u16(t as u16);
+            buffer.write_bytes(&u16::to_le_bytes(t as u16));
         }
     }
 
@@ -249,7 +249,7 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
     assert!(buffer.len() % 4 == 0, "Expected building bytelength to be divisible by 4");
 
     stdout
-        .write_all(&building_byte_length.to_be_bytes())
+        .write_all(&building_byte_length.to_le_bytes())
         .expect("Failed to write building byte length to stdout");
     stdout
         .write_all(buffer.as_bytes())
@@ -305,8 +305,8 @@ fn parse_gml_to_stdout(filepaths: Vec<PathBuf>) -> () {
     let mut header = ByteBuffer::new();
     header.write_bytes(&VERSION);
     header.write_u8(0);
-    header.write_u32(triangle_count as u32);
-    header.write_u32(buildings_count as u32);
+    header.write_bytes(&u32::to_le_bytes(triangle_count as u32));
+    header.write_bytes(&u32::to_le_bytes(buildings_count as u32));
     {
         let mut stdout = stdout().lock();
         stdout
@@ -342,8 +342,13 @@ fn get_info(filepath: &PathBuf) -> () {
         "Header does not have expected values - may not be the right format"
     );
 
-    let triangle_count = header.read_u32().expect("Unable to read triangle count");
-    let buildings_count = header.read_u32().expect("Unable to read buildings count");
+    let mut triangle_count: [u8; 4] = [0; 4];
+    header.read_exact(&mut triangle_count).expect("Unable to read triangle count");
+    let triangle_count = u32::from_le_bytes(triangle_count);
+
+    let mut buildings_count: [u8; 4] = [0; 4];
+    header.read_exact(&mut buildings_count).expect("Unable to read buildings count");
+    let buildings_count = u32::from_le_bytes(buildings_count);
 
     eprintln!(
         "file version: {}.{}.{}",
