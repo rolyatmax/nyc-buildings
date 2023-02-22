@@ -40,8 +40,10 @@ async function main (): Promise<void> {
   //   usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
   // })
 
-  const CENTER = [1249.5, 1249.5, 800]
-  const EYE = [CENTER[0] - 2000, CENTER[1] - 2000, 2000]
+  // mins: [ 978980, 194480, -40 ]
+  // maxs: [ 1009997, 259992, 1797 ]
+  const CENTER = [999623, 194023, -10]
+  const EYE = [CENTER[0] - 20000, CENTER[1] - 20000, 40000]
   const camera = createCameraControls(canvas, {
     eye: EYE,
     center: CENTER

@@ -72,7 +72,7 @@ export default class StreamDecoder {
     while (true) {
       if (chunk.length === 0) break
       const dataview = new DataView(chunk.buffer, chunk.byteOffset)
-      const buildingByteLength = dataview.getUint32(0)
+      const buildingByteLength = dataview.getUint32(0, true)
       // see if this chunk contains the data for the entire building (minus 4 bytes for the
       // buildingByteLength uint32 - which isn't included in the count)
       // if not, then stick all of it in the leftoverChunk and try again on the next tick
@@ -108,11 +108,11 @@ export default class StreamDecoder {
 
     const dataview = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength)
     let i = 0
-    const buildingId = dataview.getUint32(i)
-    const vertexCount = dataview.getUint32(i + 4)
-    const vertices = new Float32Array(chunk.buffer, 8, vertexCount * 3)
+    const buildingId = dataview.getUint32(i, true)
+    const vertexCount = dataview.getUint32(i + 4, true)
+    const vertices = new Float32Array(chunk.buffer, chunk.byteOffset + 8, vertexCount * 3)
     i += 8 + vertices.byteLength
-    const triangleCount = dataview.getUint32(i)
+    const triangleCount = dataview.getUint32(i, true)
     i += 4
     const TypedArray = vertexCount > 255 ? Uint16Array : Uint8Array
     const triangles = new TypedArray(chunk.buffer, chunk.byteOffset + i, triangleCount * 3)
@@ -145,8 +145,8 @@ export default class StreamDecoder {
     const dataview = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength)
     const version = `${chunk[0]}.${chunk[1]}.${chunk[2]}`
     if (chunk[3] !== 0) throw new Error('Decoding data failed: invalid header')
-    const triangleCount = dataview.getUint32(4)
-    const buildingCount = dataview.getUint32(8)
+    const triangleCount = dataview.getUint32(4, true)
+    const buildingCount = dataview.getUint32(8, true)
     const vertexCount = triangleCount * 3
     this.result = {
       positions: new Float32Array(vertexCount * 3),

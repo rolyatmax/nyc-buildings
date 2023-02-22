@@ -1,20 +1,18 @@
-// -----------------------------------------------------
-// TODO: REPURPOSE THIS FOR THE NYC BUILDINGS DEMO
-// -----------------------------------------------------
-
 import { mat4 } from 'gl-matrix'
+import dataUrl from '../models/processed/DA-all.bin?url'
+import StreamDecoder from './stream-decoder'
 
 type RenderProps = { view: number[] }
 type RenderState = null
 type RenderFn = (renderProps: RenderProps, renderState: RenderState, curTexture: GPUTexture) => void
 
-export default async function createRenderer (device: GPUDevice, texture: GPUTexture): Promise<RenderFn> {
-  // const result = await getLidarStreamer(device, 'https://nyc-lidar-demo.s3.amazonaws.com/987210.bin')
-  const result = await getLidarStreamer(device, 'https://nyc-lidar-demo.s3.amazonaws.com/midtown-sampled-md.bin')
-  // const result = await getLidarStreamer(device, 'https://nyc-lidar-demo.s3.amazonaws.com/manhattan-sampled-lg.bin')
+const fadeHeightStart = 1400
+const fadeHeightEnd = -700
 
-  const { getCurrentPointCount, offset, buffer: vertexBuffer } = result
-  const minZ = offset[2]
+export default async function createRenderer (device: GPUDevice, texture: GPUTexture): Promise<RenderFn> {
+  const result = await getDataStreamer(device, dataUrl)
+
+  const { getCurrentVertexCount, buffers } = result
 
   const shader = `
     struct Uniforms {
@@ -51,14 +49,12 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
 
     @vertex
     fn mainVertex(
-      @location(0) position: vec3<u32>,
-      @location(1) intensity: vec2<f32>
+      @location(0) position: vec3<f32>
     ) -> Output {
-      let p = vec3<f32>(position);
+      let p = position;
       const colorPow = 2.0;
       const colorOffset = 0.5;
-      // see note below. had to make this a vec2 & ignore the x component
-      let t = intensity.y;
+      var t = (p.z + 50.0) / 2000.0;
       var color = getColorFromPalette(pow(t + colorOffset, colorPow));
       let colorMult = 0.05 + smoothstep(uniforms.fadeHeightRange.y, uniforms.fadeHeightRange.x, p.z);
       color *= colorMult;
@@ -104,17 +100,12 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       entryPoint: 'mainVertex',
       buffers: [
         {
-          arrayStride: 8,
+          arrayStride: 12,
           attributes: [
             {
               shaderLocation: 0,
-              format: 'uint16x4', // x3 is not possible, so make vec4 and ignore the w component
+              format: 'float32x3',
               offset: 0
-            },
-            {
-              shaderLocation: 1,
-              format: 'unorm16x2', // unorm16x1 is not possible, so make vec2 and ignore the x component
-              offset: 4
             }
           ]
         }
@@ -125,7 +116,7 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       entryPoint: 'mainFragment',
       targets: [{ format: texture.format }]
     },
-    primitive: { topology: 'point-list' },
+    primitive: { topology: 'triangle-list' },
     depthStencil: {
       format: 'depth24plus',
       depthWriteEnabled: true,
@@ -154,8 +145,6 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
     const { width, height } = curTexture
 
     const projection = mat4.perspective(new Float32Array(16), Math.PI / 4, width / height, 1, 1000000)
-    const fadeHeightStart = minZ + 1200 // 2100
-    const fadeHeightEnd = minZ + 450 // 900
     uniformData.set(projection, 0)
     uniformData.set(renderProps.view, 16)
     uniformData.set([fadeHeightStart, fadeHeightEnd], 32)
@@ -177,10 +166,12 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       }
     })
 
+    const vertexCount = getCurrentVertexCount()
+
     renderPass.setPipeline(pipeline)
-    renderPass.setVertexBuffer(0, vertexBuffer)
+    renderPass.setVertexBuffer(0, buffers.positions)
     renderPass.setBindGroup(0, uniformBindGroup)
-    renderPass.draw(getCurrentPointCount())
+    renderPass.draw(vertexCount)
     renderPass.end()
     device.queue.submit([commandEncoder.finish()])
   }
@@ -205,72 +196,84 @@ function createGPUBuffer (
 
 // --------- HELPERS ------------
 
-async function getLidarStreamer (device: GPUDevice, url: string) {
+type DataStreamer = {
+  getCurrentVertexCount: () => number
+  vertexCount: number
+  buffers: {
+    positions: GPUBuffer
+    // barys: GPUBuffer
+    // buildingIds: GPUBuffer
+  }
+}
+
+const TRIANGLE_IN_BYTES = 3 * 3 * 4 // 3 vertices * 3 components (xyz) * 4 bytes (float32)
+
+async function getDataStreamer (device: GPUDevice, url: string): Promise<DataStreamer> {
   const startTime = performance.now()
   const response = await fetch(url)
 
   if (!response.body) {
-    throw new Error('Unable to fetch lidar data. No response.body.')
+    throw new Error('Unable to fetch data. No response.body.')
   }
 
   const reader = response.body.getReader()
 
   const result = await reader.read()
-  if (result.done || !result.value) throw new Error('Unable to fetch lidar data. Stream completed before any data was received.')
-  const dataview = new DataView(result.value.buffer)
-  const pointCount = dataview.getUint32(0)
-  const offset = [
-    dataview.getInt32(4),
-    dataview.getInt32(8),
-    dataview.getInt32(12)
-  ]
+  if (result.done || !result.value) throw new Error('Unable to fetch data. Stream completed before any data was received.')
 
-  console.log({ pointCount, offset })
+  const decoder = new StreamDecoder()
+  decoder.onChunk(result.value)
 
-  const pointSizeInBytes = 4 * 2 // each point has 4 uint16 values
-  const lidarData = new Uint8Array(pointCount * pointSizeInBytes)
-  const remainingBytes = result.value.buffer.byteLength - 16
-  const ptCountFromFirstLoad = Math.floor(remainingBytes / 8)
-  const ptByteCount = ptCountFromFirstLoad * 8
-  const initialData = new Uint8Array(result.value.buffer, 16, ptByteCount)
-  lidarData.set(initialData)
+  let decoderResult = decoder.getCurrentResult()
+  while (decoderResult === null) {
+    decoderResult = decoder.getCurrentResult()
+    const result = await reader.read()
+    if (result?.value) decoder.onChunk(result.value)
+  }
 
-  let i = initialData.length
-  let currentPointCount = ptCountFromFirstLoad
-  let leftoverBytesFromLast = new Uint8Array(result.value.buffer, ptByteCount + 16)
+  const { positions, buildingCount, triangleCount, trianglesProcessed, version } = decoderResult
+  const positionsSample = positions.slice(0, 18)
 
-  const buffer = createGPUBuffer(device, lidarData.buffer, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST)
+  console.log({ buildingCount, triangleCount, version, positionsSample })
 
-  setTimeout(async function loadChunk() {
+  const positionsBuffer = createGPUBuffer(device, positions.buffer, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST)
+
+  let lastTrianglesProcessed = trianglesProcessed
+
+  async function loadTheRest (): Promise<void> {
     let chunks = 1
     while (true) {
       const result = await reader.read()
       if (result.done) {
         console.log(`finished loading data in ${chunks} chunks. time(ms):`, performance.now() - startTime)
-        console.log(`points: ${currentPointCount}, bytes: ${i}`)
+        if (!decoder.done) console.warn('finished loading data but decoder.done is false!')
         return
       }
       chunks += 1
+
       // this should always have a value, but this check will satisfy typescript
       if (result.value) {
-        const byteCount = result.value.buffer.byteLength + leftoverBytesFromLast.byteLength
-        const ptCount = Math.floor(byteCount / 8)
-        const data = new Uint8Array(ptCount * 8)
-        const dataFromCurResult = new Uint8Array(result.value.buffer, 0, data.length - leftoverBytesFromLast.length)
-        data.set(leftoverBytesFromLast)
-        data.set(dataFromCurResult, leftoverBytesFromLast.length)
-        device.queue.writeBuffer(buffer, i, data.buffer)
-        i += data.length
-        currentPointCount += ptCount
-        leftoverBytesFromLast = new Uint8Array(result.value.slice().buffer, dataFromCurResult.length)
+        decoder.onChunk(result.value)
+        const decodeResult = decoder.getCurrentResult()!
+        const { positions, trianglesProcessed } = decodeResult
+
+        const bufferOffset = lastTrianglesProcessed * TRIANGLE_IN_BYTES
+        const sizeOfWrite = (trianglesProcessed - lastTrianglesProcessed) * TRIANGLE_IN_BYTES
+        device.queue.writeBuffer(positionsBuffer, bufferOffset, positions.buffer, bufferOffset, sizeOfWrite)
+        lastTrianglesProcessed = trianglesProcessed
       }
     }
+  }
+
+  setTimeout(() => {
+    loadTheRest().catch((err: any) => {
+      console.error('Error occured while loading data', err)
+    })
   }, 0)
 
   return {
-    offset,
-    pointCount,
-    getCurrentPointCount: () => currentPointCount,
-    buffer
+    vertexCount: triangleCount * 3,
+    getCurrentVertexCount: () => lastTrianglesProcessed * 3,
+    buffers: { positions: positionsBuffer }
   }
 }
