@@ -56,7 +56,7 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       const colorOffset = 0.5;
       var t = (p.z + 50.0) / 2000.0;
       var color = getColorFromPalette(pow(t + colorOffset, colorPow));
-      let colorMult = 0.05 + smoothstep(uniforms.fadeHeightRange.y, uniforms.fadeHeightRange.x, p.z);
+      let colorMult = 0.4 + smoothstep(uniforms.fadeHeightRange.y, uniforms.fadeHeightRange.x, p.z) * 0.6;
       color *= colorMult;
       var output: Output;
       output.color = color;
