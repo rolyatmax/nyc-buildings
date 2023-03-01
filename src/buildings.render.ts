@@ -116,7 +116,11 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       entryPoint: 'mainFragment',
       targets: [{ format: texture.format }]
     },
-    primitive: { topology: 'triangle-list' },
+    primitive: {
+      topology: 'triangle-list',
+      frontFace: 'ccw',
+      cullMode: 'back'
+    },
     depthStencil: {
       format: 'depth24plus',
       depthWriteEnabled: true,
