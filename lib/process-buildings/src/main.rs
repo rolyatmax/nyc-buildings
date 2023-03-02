@@ -246,7 +246,10 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
         building_byte_length as usize == buffer.len(),
         "expected building byte length and buffer length to be the same"
     );
-    assert!(buffer.len() % 4 == 0, "Expected building bytelength to be divisible by 4");
+    assert!(
+        buffer.len() % 4 == 0,
+        "Expected building bytelength to be divisible by 4"
+    );
 
     stdout
         .write_all(&building_byte_length.to_le_bytes())
@@ -343,11 +346,15 @@ fn get_info(filepath: &PathBuf) -> () {
     );
 
     let mut triangle_count: [u8; 4] = [0; 4];
-    header.read_exact(&mut triangle_count).expect("Unable to read triangle count");
+    header
+        .read_exact(&mut triangle_count)
+        .expect("Unable to read triangle count");
     let triangle_count = u32::from_le_bytes(triangle_count);
 
     let mut buildings_count: [u8; 4] = [0; 4];
-    header.read_exact(&mut buildings_count).expect("Unable to read buildings count");
+    header
+        .read_exact(&mut buildings_count)
+        .expect("Unable to read buildings count");
     let buildings_count = u32::from_le_bytes(buildings_count);
 
     eprintln!(
