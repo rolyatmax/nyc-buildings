@@ -10,7 +10,7 @@ use nom::IResult;
 use std::collections::{HashMap, HashSet};
 use std::env::current_dir;
 use std::fs::{canonicalize, read_to_string, File};
-use std::io::{stdout, Read, StdoutLock, Write};
+use std::io::{stdout, BufWriter, Read, StdoutLock, Write};
 use std::path::PathBuf;
 
 const MAX_U16: u32 = u32::pow(2, 16) - 1;
@@ -74,11 +74,6 @@ fn get_tag_contents(input: &str, tag_str: String) -> IResult<&str, &str> {
     Ok((input, contents))
 }
 
-fn coord_to_string(coord: &[f64]) -> String {
-    let c: Vec<String> = coord.clone().iter().map(|v| v.to_string()).collect();
-    c.join(",")
-}
-
 fn parse_building(input: &str) -> IResult<&str, Building> {
     let (input, _) = strip_through_tag(input, "<gen:stringAttribute name=\"BIN\">".to_string())?;
     let (input, bin) = get_tag_contents(input, "gen:value".to_string())?;
@@ -86,8 +81,8 @@ fn parse_building(input: &str) -> IResult<&str, Building> {
 
     let mut idx = 0;
     let mut vertex_to_idx: HashMap<String, usize> = HashMap::new();
-    let mut vertices: Vec<f64> = vec![];
-    let mut triangles: Vec<u32> = vec![];
+    let mut vertices: Vec<f32> = Vec::with_capacity(8);
+    let mut triangles: Vec<u32> = Vec::with_capacity(10);
 
     loop {
         let pos_list = match get_tag_contents(left, "gml:posList".to_string()) {
@@ -100,50 +95,56 @@ fn parse_building(input: &str) -> IResult<&str, Building> {
             }
         };
         let pos_list = pos_list.trim();
-        let pos_list = pos_list.split_whitespace();
-        let pos_list = pos_list.map(|v| v.parse().expect("Could not parse number as f64"));
-        let mut pos_list: Vec<f64> = pos_list.collect();
+        let mut pos_list: Vec<&str> = pos_list.split_whitespace().collect();
         pos_list.truncate(pos_list.len() - 3);
+        let pos_list_chunks = pos_list.chunks_exact(3);
 
-        let mut x_dim_set: HashSet<String> = HashSet::new();
-        let mut y_dim_set: HashSet<String> = HashSet::new();
-        let mut z_dim_set: HashSet<String> = HashSet::new();
+        let mut x_dim_set: HashSet<&str> = HashSet::new();
+        let mut y_dim_set: HashSet<&str> = HashSet::new();
+        let mut z_dim_set: HashSet<&str> = HashSet::new();
 
         assert!(
             pos_list.len() % 3 == 0 && pos_list.len() > 0,
             "pos_list should be divisible by 3 and greater than 0"
         );
 
-        for pos in pos_list.chunks_exact(3) {
-            let name = coord_to_string(pos);
+        for pos in pos_list_chunks.clone() {
+            let x: f32 = pos[0].parse().expect("Could not parse x as f32");
+            let y: f32 = pos[1].parse().expect("Could not parse y as f32");
+            let z: f32 = pos[2].parse().expect("Could not parse z as f32");
+            let name = pos.join("|");
             if !vertex_to_idx.contains_key(&name) {
-                vertices.push(pos[0]);
-                vertices.push(pos[1]);
-                vertices.push(pos[2]);
+                vertices.push(x);
+                vertices.push(y);
+                vertices.push(z);
                 vertex_to_idx.insert(name, idx);
                 idx += 1;
             }
-            x_dim_set.insert(pos[0].to_string());
-            y_dim_set.insert(pos[1].to_string());
-            z_dim_set.insert(pos[2].to_string());
+            x_dim_set.insert(pos[0]);
+            y_dim_set.insert(pos[1]);
+            z_dim_set.insert(pos[2]);
         }
 
         // now, take the pos_list and use earcutr to produce a list of triangles
-        let pt_indices = match pos_list.len() {
+        let pos_list_len = pos_list.len();
+        let pt_indices = match pos_list_len {
             9 => vec![0, 1, 2],
             12 => vec![0, 1, 2, 0, 2, 3],
             _ => {
-                let mut pos_list_2d: Vec<f64> = Vec::new();
-                for c in pos_list.chunks_exact(3) {
+                let mut pos_list_2d: Vec<f32> = Vec::with_capacity(pos_list_len / 3 * 2);
+                for c in pos_list_chunks {
+                    let x: f32 = c[0].parse().expect("Could not parse x as f32");
+                    let y: f32 = c[1].parse().expect("Could not parse y as f32");
+                    let z: f32 = c[2].parse().expect("Could not parse z as f32");
                     if x_dim_set.len() == 1 {
-                        pos_list_2d.push(c[1]);
-                        pos_list_2d.push(c[2]);
+                        pos_list_2d.push(y);
+                        pos_list_2d.push(z);
                     } else if y_dim_set.len() == 1 {
-                        pos_list_2d.push(c[0]);
-                        pos_list_2d.push(c[2]);
+                        pos_list_2d.push(x);
+                        pos_list_2d.push(z);
                     } else {
-                        pos_list_2d.push(c[0]);
-                        pos_list_2d.push(c[1]);
+                        pos_list_2d.push(x);
+                        pos_list_2d.push(y);
                     }
                 }
                 // earcutr doesn't ACTUALLY work with 3 dimensions,
@@ -169,7 +170,7 @@ fn parse_building(input: &str) -> IResult<&str, Building> {
                 pos_list[idx * 3 + 1],
                 pos_list[idx * 3 + 2],
             ];
-            let name = coord_to_string(&coord);
+            let name = coord.join("|");
             let vertex_idx = vertex_to_idx
                 .get(&name)
                 .expect("Unable to find vertex index from hashmap!");
@@ -192,7 +193,7 @@ fn parse_building(input: &str) -> IResult<&str, Building> {
     Ok(("", building))
 }
 
-fn write_building(mut stdout: StdoutLock, building: Building) -> () {
+fn write_building(buf_writer: &mut BufWriter<StdoutLock>, building: Building) -> () {
     /*
     buildingByteLength (not including this value) - uint32
     buildingId - uint32
@@ -251,16 +252,16 @@ fn write_building(mut stdout: StdoutLock, building: Building) -> () {
         "Expected building bytelength to be divisible by 4"
     );
 
-    stdout
+    buf_writer
         .write_all(&building_byte_length.to_le_bytes())
         .expect("Failed to write building byte length to stdout");
-    stdout
+    buf_writer
         .write_all(buffer.as_bytes())
         .expect("Failed to write building data to stdout");
 }
 
 fn parse_gml_to_stdout(filepaths: Vec<PathBuf>) -> () {
-    let mut buildings: Vec<Building> = vec![];
+    let mut buildings: Vec<Building> = Vec::with_capacity(100); //  vec![];
     let mut vertex_count = 0;
     let mut triangle_count = 0;
 
@@ -296,6 +297,9 @@ fn parse_gml_to_stdout(filepaths: Vec<PathBuf>) -> () {
 
     let buildings_count = buildings.len();
 
+    let stdout = stdout().lock();
+    let mut buf_writer = BufWriter::new(stdout);
+
     /*
        ---- HEADER ----
        version major - u8
@@ -310,16 +314,13 @@ fn parse_gml_to_stdout(filepaths: Vec<PathBuf>) -> () {
     header.write_u8(0);
     header.write_bytes(&u32::to_le_bytes(triangle_count as u32));
     header.write_bytes(&u32::to_le_bytes(buildings_count as u32));
-    {
-        let mut stdout = stdout().lock();
-        stdout
-            .write_all(header.as_bytes())
-            .expect("Failed to write header to stdout");
-    }
+    buf_writer
+        .write_all(header.as_bytes())
+        .expect("Failed to write header to stdout");
 
     // Then, write all the buildings
     for building in buildings {
-        write_building(stdout().lock(), building);
+        write_building(&mut buf_writer, building);
     }
 
     eprintln!("YAY! ALL DONE! LET'S SEE HOW MANY BUILDINGS WE FOUND:");
