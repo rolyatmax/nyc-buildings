@@ -1,10 +1,11 @@
 import { mat4 } from 'gl-matrix'
-import dataUrl from '../models/processed/DA-all.bin?url'
+// import dataUrl from '../models/processed/DA-all.bin?url'
+import dataUrl from '../models/processed/manhattan.bin?url'
 import StreamDecoder from './stream-decoder'
 
 type RenderProps = { view: number[] }
 type RenderState = null
-type RenderFn = (renderProps: RenderProps, renderState: RenderState, curTexture: GPUTexture) => void
+type RenderFn = (renderProps: RenderProps, renderState: RenderState, context: GPUCanvasContext) => void
 
 const fadeHeightStart = 1400
 const fadeHeightEnd = -700
@@ -143,41 +144,54 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
     usage: GPUTextureUsage.RENDER_ATTACHMENT
   })
 
-  return function render (renderProps: { view: number[] }, renderState: null, curTexture: GPUTexture) {
+  let lastVertexCount = 0
+  return function render (renderProps: { view: number[] }, renderState: null, context: GPUCanvasContext) {
     const commandEncoder = device.createCommandEncoder()
-    const textureView = curTexture.createView()
-    const { width, height } = curTexture
+    const { width, height } = context.canvas
 
+    const cameraView = mat4.fromValues(renderProps.view[0], renderProps.view[1], renderProps.view[2], renderProps.view[3], renderProps.view[4], renderProps.view[5], renderProps.view[6], renderProps.view[7], renderProps.view[8], renderProps.view[9], renderProps.view[10], renderProps.view[11], renderProps.view[12], renderProps.view[13], renderProps.view[14], renderProps.view[15])
     const projection = mat4.perspective(new Float32Array(16), Math.PI / 4, width / height, 1, 1000000)
-    uniformData.set(projection, 0)
-    uniformData.set(renderProps.view, 16)
-    uniformData.set([fadeHeightStart, fadeHeightEnd], 32)
-
-    device.queue.writeBuffer(uniformBuffer, 0, uniformData)
-
-    const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: 0.11, g: 0.12, b: 0.13, a: 1.0 },
-        loadOp: 'clear' as GPULoadOp,
-        storeOp: 'store' as GPUStoreOp
-      }],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthClearValue: 1.0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store'
-      }
-    })
 
     const vertexCount = getCurrentVertexCount()
 
-    renderPass.setPipeline(pipeline)
-    renderPass.setVertexBuffer(0, buffers.positions)
-    renderPass.setBindGroup(0, uniformBindGroup)
-    renderPass.draw(vertexCount)
-    renderPass.end()
-    device.queue.submit([commandEncoder.finish()])
+    const isDirty =
+      !mat4.equals(uniformData.subarray(0, 16), projection) ||
+      !mat4.equals(uniformData.subarray(16, 32), cameraView) ||
+      vertexCount !== lastVertexCount
+
+    lastVertexCount = vertexCount
+
+    uniformData.set(projection, 0)
+    uniformData.set(cameraView, 16)
+    uniformData.set([fadeHeightStart, fadeHeightEnd], 32)
+    if (isDirty) {
+      console.log('rendering')
+      const textureView = context.getCurrentTexture().createView()
+
+      device.queue.writeBuffer(uniformBuffer, 0, uniformData)
+
+      const renderPass = commandEncoder.beginRenderPass({
+        colorAttachments: [{
+          view: textureView,
+          clearValue: { r: 0.11, g: 0.12, b: 0.13, a: 1.0 },
+          loadOp: 'clear' as GPULoadOp,
+          storeOp: 'store' as GPUStoreOp
+        }],
+        depthStencilAttachment: {
+          view: depthTexture.createView(),
+          depthClearValue: 1.0,
+          depthLoadOp: 'clear',
+          depthStoreOp: 'store'
+        }
+      })
+
+      renderPass.setPipeline(pipeline)
+      renderPass.setVertexBuffer(0, buffers.positions)
+      renderPass.setBindGroup(0, uniformBindGroup)
+      renderPass.draw(vertexCount)
+      renderPass.end()
+      device.queue.submit([commandEncoder.finish()])
+    }
   }
 }
 

@@ -57,13 +57,11 @@ async function main (): Promise<void> {
   requestAnimationFrame(function loop () {
     requestAnimationFrame(loop)
 
-    const curTexture = context.getCurrentTexture()
-
     camera.tick()
     camera.up = [0, 0, 1]
     const view = camera.matrix
 
-    render({ view }, null, curTexture)
+    render({ view }, null, context)
 
     // NOTE: when we rewrite this file to work in Deno, we will have renderers render to
     // the above outputTexture. We'll then copy that texture to this buffer and stream

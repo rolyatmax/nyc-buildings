@@ -148,6 +148,7 @@ export default class StreamDecoder {
     const triangleCount = dataview.getUint32(4, true)
     const buildingCount = dataview.getUint32(8, true)
     const vertexCount = triangleCount * 3
+    console.log(version, triangleCount, buildingCount, vertexCount)
     this.result = {
       positions: new Float32Array(vertexCount * 3),
       barys: new Float32Array(vertexCount * 3),
