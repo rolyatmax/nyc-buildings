@@ -231,7 +231,7 @@ type DataStreamer = {
   }
 }
 
-export const MAX_BUFFER_SIZE_BYTES = 268435456
+export const MAX_BUFFER_SIZE_BYTES = 268435456 // 256MiB
 export const MAX_ARRAY_SIZE = Math.floor(MAX_BUFFER_SIZE_BYTES / 4 / 3 / 32) * 3
 export const MAX_ARRAY_SIZE_BYTES = MAX_ARRAY_SIZE * 4
 
