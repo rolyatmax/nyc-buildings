@@ -1,6 +1,6 @@
 import { mat4 } from 'gl-matrix'
-// import dataUrl from '../models/processed/DA-all.bin?url'
-import dataUrl from '../models/processed/manhattan.bin?url'
+import dataUrl from '../models/processed/DA-all.bin?url'
+// import dataUrl from '../models/processed/manhattan.bin?url'
 import StreamDecoder from './stream-decoder'
 
 type RenderProps = { view: number[] }
@@ -13,7 +13,7 @@ const fadeHeightEnd = -700
 export default async function createRenderer (device: GPUDevice, texture: GPUTexture): Promise<RenderFn> {
   const result = await getDataStreamer(device, dataUrl)
 
-  const { getCurrentVertexCount, buffers } = result
+  const { getCurrentIndexCount, buffers } = result
 
   const shader = `
     struct Uniforms {
@@ -144,7 +144,7 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
     usage: GPUTextureUsage.RENDER_ATTACHMENT
   })
 
-  let lastVertexCount = 0
+  let lastIndexesCount = 0
   return function render (renderProps: { view: number[] }, renderState: null, context: GPUCanvasContext) {
     const commandEncoder = device.createCommandEncoder()
     const { width, height } = context.canvas
@@ -152,20 +152,20 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
     const cameraView = mat4.fromValues(renderProps.view[0], renderProps.view[1], renderProps.view[2], renderProps.view[3], renderProps.view[4], renderProps.view[5], renderProps.view[6], renderProps.view[7], renderProps.view[8], renderProps.view[9], renderProps.view[10], renderProps.view[11], renderProps.view[12], renderProps.view[13], renderProps.view[14], renderProps.view[15])
     const projection = mat4.perspective(new Float32Array(16), Math.PI / 4, width / height, 1, 1000000)
 
-    const vertexCount = getCurrentVertexCount()
+    const indexesCount = getCurrentIndexCount()
 
     const isDirty =
       !mat4.equals(uniformData.subarray(0, 16), projection) ||
       !mat4.equals(uniformData.subarray(16, 32), cameraView) ||
-      vertexCount !== lastVertexCount
+      indexesCount !== lastIndexesCount
 
-    lastVertexCount = vertexCount
+    lastIndexesCount = indexesCount
 
     uniformData.set(projection, 0)
     uniformData.set(cameraView, 16)
     uniformData.set([fadeHeightStart, fadeHeightEnd], 32)
     if (isDirty) {
-      console.log('rendering')
+      console.log('rendering', buffers.indexes.length, 'index buffers')
       const textureView = context.getCurrentTexture().createView()
 
       device.queue.writeBuffer(uniformBuffer, 0, uniformData)
@@ -188,7 +188,13 @@ export default async function createRenderer (device: GPUDevice, texture: GPUTex
       renderPass.setPipeline(pipeline)
       renderPass.setVertexBuffer(0, buffers.positions)
       renderPass.setBindGroup(0, uniformBindGroup)
-      renderPass.draw(vertexCount)
+      let remainingIndexCount = indexesCount
+      for (const indexes of buffers.indexes) {
+        const countToDraw = Math.min(remainingIndexCount, MAX_ARRAY_SIZE)
+        renderPass.setIndexBuffer(indexes, 'uint32')
+        renderPass.drawIndexed(countToDraw)
+        remainingIndexCount -= countToDraw
+      }
       renderPass.end()
       device.queue.submit([commandEncoder.finish()])
     }
@@ -215,16 +221,23 @@ function createGPUBuffer (
 // --------- HELPERS ------------
 
 type DataStreamer = {
-  getCurrentVertexCount: () => number
-  vertexCount: number
+  getCurrentIndexCount: () => number
+  indexCount: number
   buffers: {
     positions: GPUBuffer
+    indexes: GPUBuffer[]
     // barys: GPUBuffer
     // buildingIds: GPUBuffer
   }
 }
 
-const TRIANGLE_IN_BYTES = 3 * 3 * 4 // 3 vertices * 3 components (xyz) * 4 bytes (float32)
+export const MAX_BUFFER_SIZE_BYTES = 268435456
+export const MAX_ARRAY_SIZE = Math.floor(MAX_BUFFER_SIZE_BYTES / 4 / 3 / 32) * 3
+export const MAX_ARRAY_SIZE_BYTES = MAX_ARRAY_SIZE * 4
+
+if (MAX_ARRAY_SIZE % 3 !== 0) throw new Error('Array size is not divisible by 3, which is required for triangle lists')
+
+const VERTEX_IN_BYTES = 3 * 4 // 3 floats * 4 bytes (float32)
 
 async function getDataStreamer (device: GPUDevice, url: string): Promise<DataStreamer> {
   const startTime = performance.now()
@@ -249,14 +262,22 @@ async function getDataStreamer (device: GPUDevice, url: string): Promise<DataStr
     if (result?.value) decoder.onChunk(result.value)
   }
 
-  const { positions, buildingCount, triangleCount, trianglesProcessed, version } = decoderResult
-  const positionsSample = positions.slice(0, 18)
+  const { vertices, indexes, buildingCount, triangleCount, trianglesProcessed, verticesProcessed, version } = decoderResult
+  const positionsSample = vertices.slice(0, 18)
+  const indexSample = indexes.slice(0, 9)
+  console.log({ buildingCount, triangleCount, version, positionsSample, indexSample })
 
-  console.log({ buildingCount, triangleCount, version, positionsSample })
-
-  const positionsBuffer = createGPUBuffer(device, positions.buffer, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST)
+  const positionsBuffer = createGPUBuffer(device, vertices.buffer, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST)
+  const indexesBuffers: GPUBuffer[] = []
+  let i = triangleCount * 3
+  while (i > 0) {
+    const bufferSize = Math.min(MAX_ARRAY_SIZE, i) * 4
+    indexesBuffers.push(createGPUBuffer(device, new ArrayBuffer(bufferSize), GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST))
+    i -= MAX_ARRAY_SIZE
+  }
 
   let lastTrianglesProcessed = trianglesProcessed
+  let lastVerticesProcessed = verticesProcessed
 
   async function loadTheRest (): Promise<void> {
     let chunks = 1
@@ -272,13 +293,28 @@ async function getDataStreamer (device: GPUDevice, url: string): Promise<DataStr
       // this should always have a value, but this check will satisfy typescript
       if (result.value) {
         decoder.onChunk(result.value)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const decodeResult = decoder.getCurrentResult()!
-        const { positions, trianglesProcessed } = decodeResult
+        const { vertices, verticesProcessed, trianglesProcessed, indexes } = decodeResult
 
-        const bufferOffset = lastTrianglesProcessed * TRIANGLE_IN_BYTES
-        const sizeOfWrite = (trianglesProcessed - lastTrianglesProcessed) * TRIANGLE_IN_BYTES
-        device.queue.writeBuffer(positionsBuffer, bufferOffset, positions.buffer, bufferOffset, sizeOfWrite)
+        const bufferOffset = lastVerticesProcessed * VERTEX_IN_BYTES
+        const sizeOfWrite = (verticesProcessed - lastVerticesProcessed) * VERTEX_IN_BYTES
+        device.queue.writeBuffer(positionsBuffer, bufferOffset, vertices.buffer, bufferOffset, sizeOfWrite)
+
+        const startIdx = Math.floor(lastTrianglesProcessed * 3 / MAX_ARRAY_SIZE)
+        const endIdx = Math.ceil(trianglesProcessed * 3 / MAX_ARRAY_SIZE)
+
+        let curIdx = startIdx
+        while (curIdx < endIdx) {
+          const indexesBuffer = indexesBuffers[curIdx]
+          const size = Math.min(triangleCount * 3 - curIdx * MAX_ARRAY_SIZE, MAX_ARRAY_SIZE)
+          // TODO: don't write the whole buffer, just the part that was updated
+          device.queue.writeBuffer(indexesBuffer, 0, indexes, curIdx * MAX_ARRAY_SIZE, size)
+          curIdx += 1
+        }
+
         lastTrianglesProcessed = trianglesProcessed
+        lastVerticesProcessed = verticesProcessed
       }
     }
   }
@@ -290,8 +326,11 @@ async function getDataStreamer (device: GPUDevice, url: string): Promise<DataStr
   }, 0)
 
   return {
-    vertexCount: triangleCount * 3,
-    getCurrentVertexCount: () => lastTrianglesProcessed * 3,
-    buffers: { positions: positionsBuffer }
+    indexCount: triangleCount * 3,
+    getCurrentIndexCount: () => lastTrianglesProcessed * 3,
+    buffers: {
+      positions: positionsBuffer,
+      indexes: indexesBuffers
+    }
   }
 }

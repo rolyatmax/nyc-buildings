@@ -17,6 +17,7 @@ version major - u8
 version minor - u8
 version patch - u8
 empty - u8
+vertexCount - uint32
 triangleCount - uint32
 buildingCount - uint32
 -----
@@ -36,21 +37,20 @@ repeat with next building
 */
 
 type Result = {
-  positions: Float32Array
-  barys: Float32Array
+  vertices: Float32Array
+  // TODO: support barycentric coords - maybe on the next version of the data?
+  // barys: Float32Array
+  indexes: Uint32Array
   buildingIds: Uint32Array
   buildingsProcessed: number
   trianglesProcessed: number
+  verticesProcessed: number
   buildingCount: number
   triangleCount: number
   version: string
 }
 
-const BARYS = [
-  new Float32Array([1, 0, 0]),
-  new Float32Array([0, 1, 0]),
-  new Float32Array([0, 0, 1])
-]
+const HEADER_SIZE = 16
 
 export default class StreamDecoder {
   private result: Result | null = null
@@ -61,12 +61,12 @@ export default class StreamDecoder {
 
     const needsHeader = this.result === null
     if (needsHeader) {
-      if (chunk.length < 12) {
+      if (chunk.length < HEADER_SIZE) {
         this.leftoverChunk = chunk.slice() // TODO: DO I NEED TO COPY THIS?
         return
       }
-      this.processHeader(new Uint8Array(chunk.buffer, chunk.byteOffset, 12))
-      chunk = new Uint8Array(chunk.buffer, chunk.byteOffset + 12)
+      this.processHeader(new Uint8Array(chunk.buffer, chunk.byteOffset, HEADER_SIZE))
+      chunk = new Uint8Array(chunk.buffer, chunk.byteOffset + HEADER_SIZE)
     }
 
     while (true) {
@@ -124,18 +124,22 @@ export default class StreamDecoder {
       throw new Error('Decoding data failed: building data has leftover bytes after processing')
     }
 
-    for (let j = 0; j < triangles.length; j++) {
-      const posIdx = triangles[j]
-      const position = new Float32Array(vertices.buffer, vertices.byteOffset + posIdx * 3 * 4, 3)
-      const vertexIdxInThisTriangle = j % 3
+    const lastVertex = this.result.verticesProcessed
+    const lastVertexIdx = lastVertex * 3
+    this.result.vertices.set(vertices, lastVertexIdx)
 
-      const currentVertex = this.result.trianglesProcessed * 3 + vertexIdxInThisTriangle
+    for (let k = 0; k < vertexCount; k++) {
+      this.result.buildingIds[this.result.verticesProcessed + k] = buildingId
+    }
 
-      this.result.positions.set(position, currentVertex * 3)
-      this.result.barys.set(BARYS[vertexIdxInThisTriangle], currentVertex * 3)
-      this.result.buildingIds[currentVertex] = buildingId
+    this.result.verticesProcessed += vertexCount
 
-      if (vertexIdxInThisTriangle === 2) this.result.trianglesProcessed += 1
+    for (let j = 0; j < triangles.length; j += 3) {
+      const idx = this.result.trianglesProcessed * 3
+      this.result.indexes[idx] = triangles[j] + lastVertex
+      this.result.indexes[idx + 1] = triangles[j + 1] + lastVertex
+      this.result.indexes[idx + 2] = triangles[j + 2] + lastVertex
+      this.result.trianglesProcessed += 1
     }
 
     this.result.buildingsProcessed += 1
@@ -145,16 +149,18 @@ export default class StreamDecoder {
     const dataview = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength)
     const version = `${chunk[0]}.${chunk[1]}.${chunk[2]}`
     if (chunk[3] !== 0) throw new Error('Decoding data failed: invalid header')
-    const triangleCount = dataview.getUint32(4, true)
-    const buildingCount = dataview.getUint32(8, true)
-    const vertexCount = triangleCount * 3
-    console.log(version, triangleCount, buildingCount, vertexCount)
+    const vertexCount = dataview.getUint32(4, true)
+    const triangleCount = dataview.getUint32(8, true)
+    const buildingCount = dataview.getUint32(12, true)
+    const indexCount = triangleCount * 3
+    console.log({ version, triangleCount, buildingCount, vertexCount, indexCount })
     this.result = {
-      positions: new Float32Array(vertexCount * 3),
-      barys: new Float32Array(vertexCount * 3),
+      vertices: new Float32Array(vertexCount * 3),
+      indexes: new Uint32Array(indexCount),
       buildingIds: new Uint32Array(vertexCount),
       buildingsProcessed: 0,
       trianglesProcessed: 0,
+      verticesProcessed: 0,
       buildingCount,
       triangleCount,
       version
